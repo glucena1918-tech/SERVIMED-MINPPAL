@@ -10,28 +10,45 @@ export default function PatientDashboard() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [patientData, setPatientData] = useState<any>(null);
+    const [nextAppointment, setNextAppointment] = useState<any>(null);
 
     useEffect(() => {
-        const loadPatientData = async () => {
+        const loadDashboardData = async () => {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) { router.push('/login'); return; }
 
-                const { data: patient, error } = await supabase
+                // Cargar perfil
+                const { data: patient, error: pError } = await supabase
                     .from('patients')
                     .select('*')
                     .eq('user_id', user.id)
                     .single();
 
-                if (error) console.error('Error al cargar perfil del paciente:', error);
+                if (pError) throw pError;
                 setPatientData(patient);
+
+                // Cargar próxima cita (pendiente o confirmada)
+                const { data: appointment, error: aError } = await supabase
+                    .from('appointments')
+                    .select('*, doctors(full_name, specialty)')
+                    .eq('patient_id', patient.id)
+                    .in('status', ['pending', 'confirmed'])
+                    .gte('appointment_date', new Date().toISOString())
+                    .order('appointment_date', { ascending: true })
+                    .limit(1)
+                    .single();
+
+                if (!aError && appointment) {
+                    setNextAppointment(appointment);
+                }
             } catch (error) {
-                console.error('Error inesperado:', error);
+                console.error('Error al cargar datos del dashboard:', error);
             } finally {
                 setLoading(false);
             }
         };
-        loadPatientData();
+        loadDashboardData();
     }, [router]);
 
     const handleLogout = async () => {
@@ -108,7 +125,7 @@ export default function PatientDashboard() {
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center z-10 px-4" style={{ paddingTop: '56px' }}>
                     <p className="text-xs font-bold uppercase tracking-[0.3em] mb-2"
                         style={{ color: '#06D6A0' }}>
-                        ● Servimed Minppal
+                        ● Sistema de Salud Institucional MINPPAL
                     </p>
                     <h1 className="text-3xl md:text-4xl font-black text-white mb-2 drop-shadow-lg">
                         Hola, {firstName} 👋
@@ -127,7 +144,61 @@ export default function PatientDashboard() {
             </div>
 
             {/* ── CONTENIDO PRINCIPAL ── */}
-            <main className="max-w-6xl mx-auto px-6 -mt-2 pb-16">
+            <main className="max-w-6xl mx-auto px-6 -mt-16 pb-16 relative z-30">
+
+                {/* ── TARJETA DE PRÓXIMOS PASOS (Floating Card) ── */}
+                <div className="mb-10 group">
+                    <div className="rainbow-border-container shadow-[0_20px_50px_rgba(10,36,99,0.15)] transition-all duration-500 hover:shadow-[0_30px_60px_rgba(10,36,99,0.25)]">
+                        {/* La viga de luz arcoiris giratoria */}
+                        <div className="rainbow-border-beam" />
+                        
+                        <div className="rainbow-border-content relative overflow-hidden">
+                            {/* Decoración de fondo interna */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-[#06D6A0]/5 blur-3xl rounded-full -mr-20 -mt-20 group-hover:bg-[#06D6A0]/10 transition-all duration-700" />
+                            
+                            <div className="relative p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                                <div className="flex items-center gap-6 text-center md:text-left">
+                                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#06D6A0] to-[#059669] flex items-center justify-center text-4xl shadow-xl shadow-[#06D6A0]/30 animate-bounce-slow">
+                                        🗓️
+                                    </div>
+                                    <div>
+                                        <h2 className="text-3xl font-black text-[#0a2463] tracking-tighter mb-1">
+                                            ¡Buenos días, {firstName}!
+                                        </h2>
+                                        <div className="text-gray-500 font-medium text-lg">
+                                            {nextAppointment ? (
+                                                <>
+                                                    Tu próxima cita es con el <span className="text-[#06D6A0] font-bold">Dr. {nextAppointment.doctors?.full_name?.split(' ').pop()}</span>
+                                                    <span className="block text-sm text-gray-400 mt-1 uppercase tracking-widest font-black">
+                                                        {new Date(nextAppointment.appointment_date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                "No tienes citas programadas para los próximos días."
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {nextAppointment ? (
+                                    <button 
+                                        onClick={() => router.push('/patient/appointments')}
+                                        className="px-8 py-4 rounded-2xl bg-[#0a2463] text-white font-black tracking-widest uppercase text-xs hover:bg-[#0f3491] transition-all shadow-xl shadow-[#0a2463]/20 active:scale-95"
+                                    >
+                                        Ver detalles de la cita
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={() => router.push('/patient/appointments/request')}
+                                        className="px-8 py-4 rounded-2xl bg-[#06D6A0] text-[#020714] font-black tracking-widest uppercase text-xs hover:bg-[#059669] transition-all shadow-xl shadow-[#06D6A0]/20 active:scale-95"
+                                    >
+                                        Solicitar cita ahora
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 {/* Alerta ficha incompleta */}
                 {!patientData?.cedula && (
@@ -241,7 +312,6 @@ export default function PatientDashboard() {
                         </div>
                     </div>
                 </div>
-
 
             </main>
         </div>

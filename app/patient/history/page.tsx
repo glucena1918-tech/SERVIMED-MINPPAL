@@ -72,7 +72,7 @@ const generatePDF = async (records: MedicalRecord[], patientName: string) => {
         doc.setTextColor(...COLORS.white);
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
-        doc.text('SERVIMED MINPPAL — Historial Clínico Confidencial', margin, 9);
+        doc.text('Sistema de Salud Institucional MINPPAL — Historial Clínico Confidencial', margin, 9);
         doc.setTextColor(...COLORS.midGray);
         doc.text(`${patientName}`, W - margin, 9, { align: 'right' });
     };
@@ -137,7 +137,7 @@ const generatePDF = async (records: MedicalRecord[], patientName: string) => {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(200, 220, 255);
-    doc.text('Servimed Minppal — MINPPAL', titleX, logoBoxY + 15);
+    doc.text('Sistema de Salud Institucional MINPPAL', titleX, logoBoxY + 15);
     doc.text(`Generado: ${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}`, titleX, logoBoxY + 21);
     doc.text(`Total de registros: ${records.length}`, titleX, logoBoxY + 27);
 
@@ -321,7 +321,7 @@ const generatePDF = async (records: MedicalRecord[], patientName: string) => {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7);
         doc.setTextColor(...COLORS.midGray);
-        doc.text('Servimed Minppal — Ministerio del Poder Popular para la Alimentación', margin, 291);
+        doc.text('Sistema de Salud Institucional MINPPAL — Ministerio del Poder Popular para la Alimentación', margin, 291);
         doc.text(`Pág. ${p} / ${totalPages}`, W - margin, 291, { align: 'right' });
     }
 
@@ -434,7 +434,7 @@ export default function PatientHistoryPage() {
 
                 {/* Título centrado */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center z-10" style={{ paddingTop: '48px' }}>
-                    <p className="text-xs font-bold uppercase tracking-[0.3em] mb-2" style={{ color: '#06D6A0' }}>● Servimed Minppal</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.3em] mb-2" style={{ color: '#06D6A0' }}>● Sistema de Salud Institucional MINPPAL</p>
                     <h1 className="text-3xl font-black text-white drop-shadow-lg">📋 Mi Historial Clínico</h1>
                     <p className="text-white/60 text-sm mt-1">Diagnósticos, tratamientos y recetas registrados</p>
                 </div>

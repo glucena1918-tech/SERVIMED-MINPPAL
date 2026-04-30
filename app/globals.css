@@ -5,12 +5,75 @@
 :root {
   --font-inter: 'Inter', sans-serif;
   --font-roboto: 'Roboto', serif;
+  --text-base-size: 16px;
+}
+
+html {
+  font-size: var(--text-base-size);
 }
 
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900;
   }
+}
+
+@keyframes border-beam {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+
+@keyframes rainbow-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
+}
+
+.rainbow-border-container {
+  position: relative;
+  padding: 3px;
+  border-radius: 40px;
+  overflow: hidden;
+  background: white;
+}
+
+.rainbow-border-beam {
+  position: absolute;
+  top: -150%;
+  left: -150%;
+  width: 400%;
+  height: 400%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    #ff0000 10%,
+    #ff7300 20%,
+    #fffb00 30%,
+    #48ff00 40%,
+    #00ffd5 50%,
+    #002bff 60%,
+    #7a00ff 70%,
+    #ff00c8 80%,
+    #ff0000 90%,
+    transparent 100%
+  );
+  animation: rainbow-rotate 8s linear infinite;
+  filter: blur(8px);
+}
+
+.rainbow-border-content {
+  position: relative;
+  background: white;
+  border-radius: 37px;
+  z-index: 1;
 }
 
 @layer utilities {

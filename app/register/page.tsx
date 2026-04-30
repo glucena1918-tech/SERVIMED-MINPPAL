@@ -126,10 +126,10 @@ export default function RegisterPage() {
                             />
                         </div>
                     </div>
-                    <h1 className="text-3xl font-black text-white mb-1 tracking-tight">
-                        SERVI<span style={{ color: '#06D6A0' }}>MED</span>
+                    <h1 className="text-xl font-black text-white mb-1 tracking-tight leading-tight">
+                        Sistema de Salud Institucional <br />
+                        <span className="text-white/70">MINPPAL</span>
                     </h1>
-                    <p className="text-white/50 text-sm font-medium tracking-widest uppercase">Minppal</p>
                     <p className="text-white/60 mt-2 text-sm">
                         Crear cuenta como {role === 'patient' ? 'Paciente' : 'Médico'}
                     </p>

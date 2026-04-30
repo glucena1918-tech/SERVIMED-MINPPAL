@@ -36,7 +36,7 @@ export async function updateSession(request: NextRequest) {
     console.log('👤 Usuario autenticado:', user ? user.email : 'ninguno');
 
     // Rutas públicas que no requieren autenticación
-    const publicRoutes = ['/', '/login', '/register', '/admin/login'];
+    const publicRoutes = ['/', '/login', '/register', '/admin/login', '/help'];
     const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname === route);
 
     // Si no hay usuario y la ruta no es pública, redirigir a login

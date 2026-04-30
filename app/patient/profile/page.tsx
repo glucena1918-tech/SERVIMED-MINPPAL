@@ -238,7 +238,7 @@ export default function PatientProfilePage() {
 
                 {/* Título centrado */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center z-10" style={{ paddingTop: '48px' }}>
-                    <p className="text-xs font-bold uppercase tracking-[0.3em] mb-2" style={{ color: '#06D6A0' }}>● Servimed Minppal</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.3em] mb-2" style={{ color: '#06D6A0' }}>● Sistema de Salud Institucional MINPPAL</p>
                     <h1 className="text-3xl font-black text-white drop-shadow-lg">👤 Mi Ficha Médica</h1>
                     <p className="text-white/60 text-sm mt-1">Actualiza tus datos personales y clínicos</p>
                 </div>
@@ -318,7 +318,7 @@ export default function PatientProfilePage() {
                             <div className="flex items-center gap-2 pt-2 border-t border-amber-300">
                                 <span className="text-amber-600 text-lg">🙏</span>
                                 <p className="text-amber-700 text-sm font-bold italic">
-                                    Gracias por su colaboración — Servicio Médico MINPPAL
+                                    Gracias por su colaboración — <span style={{ color: '#0F75C1' }}>Sistema de Salud Institucional</span> <span style={{ color: '#292358' }}>MINPPAL</span>
                                 </p>
                             </div>
                         </div>

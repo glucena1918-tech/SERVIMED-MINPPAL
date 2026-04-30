@@ -540,7 +540,7 @@ export default function PatientHistoryPage() {
                             <span className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm">📄</span>
                             Nuevo Informe Médico
                         </h3>
-                        <p className="text-xs text-gray-500 mb-6 ml-11">Formato oficial MINPPAL</p>
+                        <p className="text-xs text-gray-500 mb-6 ml-11">Formato oficial <span style={{ color: '#0F75C1' }}>Sistema de Salud Institucional</span> <span style={{ color: '#292358' }}>MINPPAL</span></p>
 
                         <form onSubmit={handleSubmitRecord} className="space-y-6">
 

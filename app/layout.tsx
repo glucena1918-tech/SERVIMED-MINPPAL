@@ -14,11 +14,12 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-    title: "Servimed Minppal - Tu Salud en Buenas Manos",
+    title: "Sistema de Salud Institucional MINPPAL - Tu Salud en Buenas Manos",
     description: "Plataforma integral de salud para agendar citas médicas, gestionar historiales clínicos y conectar con especialistas",
 };
 
 import { Toaster } from 'react-hot-toast';
+import AccessibilityPanel from "@/components/AccessibilityPanel";
 
 export default function RootLayout({
     children,
@@ -29,6 +30,7 @@ export default function RootLayout({
         <html lang="es" suppressHydrationWarning>
             <body className={`${inter.variable} ${roboto.variable} font-sans antialiased`} suppressHydrationWarning>
                 {children}
+                <AccessibilityPanel />
                 <Toaster position="top-right" />
             </body>
         </html>

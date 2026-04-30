@@ -82,16 +82,14 @@ export default function HomePage() {
                         <div className="relative w-14 h-14 overflow-hidden rounded-2xl border-2 border-accent/40 group-hover:border-accent transition-all duration-500 shadow-xl shadow-accent/20">
                             <img
                                 src="https://images.pexels.com/photos/37340896/pexels-photo-37340896.png"
-                                alt="Servimed Logo"
+                                alt="Logo Sistema de Salud Institucional MINPPAL"
                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                             />
                         </div>
                         <div className="flex flex-col -space-y-1">
-                            <span className="text-white font-black text-2xl tracking-tighter drop-shadow-md">
-                                SERVI<span className="text-accent">MED</span>
-                            </span>
-                            <span className="text-white/60 text-[10px] font-bold tracking-[0.3em] uppercase">
-                                Minppal
+                            <span className="text-white font-black text-xl tracking-tight leading-none drop-shadow-md">
+                                Sistema de Salud <br />
+                                Institucional <span className="text-white/80">MINPPAL</span>
                             </span>
                         </div>
                     </Link>
@@ -99,12 +97,11 @@ export default function HomePage() {
                     <div className="flex items-center space-x-8">
                         <nav className="hidden lg:flex space-x-8 text-xs font-bold text-white/60 uppercase tracking-widest">
                             <a href="#" className="hover:text-accent transition-colors">Especialidades</a>
-                            <a href="#" className="hover:text-accent transition-colors">Sedes</a>
-                            <a href="#" className="hover:text-accent transition-colors">Ayuda</a>
+                            <Link href="/help" className="hover:text-accent transition-colors">Ayuda</Link>
                         </nav>
                         <div className="h-6 w-px bg-white/15 hidden lg:block" />
                         <Link
-                            href="/login"
+                            href="/admin/login"
                             className="group relative overflow-hidden bg-accent text-white px-8 py-3 rounded-2xl font-black text-sm tracking-widest uppercase shadow-xl shadow-accent/30 hover:-translate-y-0.5 hover:shadow-[0_0_30px_rgba(6,214,160,0.5)] transition-all duration-300 active:scale-95"
                         >
                             <span className="relative z-10">Acceder</span>
@@ -121,11 +118,11 @@ export default function HomePage() {
                     style={{ transform: `translateY(-${scrollY * 0.08}px)` }}
                 >
                     {/* Badge */}
-                    <div className="inline-flex items-center gap-3 mb-10 px-5 py-2 rounded-full border border-accent/25 backdrop-blur-xl text-accent text-[10px] font-black tracking-[0.3em] uppercase"
-                        style={{ backgroundColor: 'rgba(6,214,160,0.08)' }}>
+                    <div className="inline-flex items-center gap-3 mb-10 px-6 py-2.5 rounded-full border border-white/20 backdrop-blur-2xl text-white text-[11px] font-black tracking-[0.3em] uppercase shadow-lg"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}>
                         <span className="relative flex h-2.5 w-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent" />
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
                         </span>
                         Plataforma Digital Institucional
                     </div>
@@ -152,16 +149,16 @@ export default function HomePage() {
                     <div className="flex flex-col sm:flex-row gap-6 justify-center mb-40">
                         <Link
                             href="/login"
-                            className="group relative px-14 py-5 text-white rounded-3xl text-xl font-black overflow-hidden shadow-2xl transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_50px_rgba(6,214,160,0.5)]"
-                            style={{ backgroundColor: '#06D6A0' }}
+                            className="group relative px-14 py-5 text-white rounded-3xl text-xl font-black overflow-hidden shadow-2xl transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_50px_rgba(28,38,236,0.5)]"
+                            style={{ backgroundColor: '#1C26EC' }}
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                             <span className="relative z-10">Soy Paciente</span>
                         </Link>
                         <Link
                             href="/login"
-                            className="px-14 py-5 text-white border border-white/15 rounded-3xl text-xl font-black backdrop-blur-2xl hover:-translate-y-2 hover:border-white/35 hover:bg-white/10 transition-all duration-300 shadow-2xl"
-                            style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                            className="px-14 py-5 text-[#020714] border border-[#15F0EB]/20 rounded-3xl text-xl font-black backdrop-blur-2xl hover:-translate-y-2 hover:shadow-[0_0_50px_rgba(21,240,235,0.4)] transition-all duration-300 shadow-2xl"
+                            style={{ backgroundColor: '#15F0EB' }}
                         >
                             Soy Médico
                         </Link>
@@ -205,7 +202,7 @@ export default function HomePage() {
                                 className="w-10 h-10 object-cover rounded-xl border border-white/10"
                                 alt=""
                             />
-                            <span className="text-white font-black tracking-tight text-xl uppercase">SERVIMED MINPPAL</span>
+                            <span className="text-white font-black tracking-tight text-xl uppercase">Sistema de Salud Institucional MINPPAL</span>
                         </div>
                         <p className="text-white/30 text-sm max-w-xs leading-relaxed">
                             Tecnología al servicio de la salud de la familia MINPPAL.

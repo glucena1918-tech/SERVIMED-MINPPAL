@@ -203,7 +203,7 @@ export default function RequestAppointmentPage() {
 
                 {/* Título centrado */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center z-10" style={{ paddingTop: '48px' }}>
-                    <p className="text-xs font-bold uppercase tracking-[0.3em] mb-2" style={{ color: '#06D6A0' }}>● Servimed Minppal</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.3em] mb-2" style={{ color: '#06D6A0' }}>● Sistema de Salud Institucional MINPPAL</p>
                     <h1 className="text-3xl font-black text-white drop-shadow-lg">📅 Solicitar Nueva Cita</h1>
                     <p className="text-white/60 text-sm mt-1">Completa los datos para agendar tu consulta médica</p>
                 </div>

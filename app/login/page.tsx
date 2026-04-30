@@ -103,10 +103,9 @@ export default function LoginPage() {
                             />
                         </div>
                     </div>
-                    <h1 className="text-3xl font-black text-white mb-1 tracking-tight">
-                        SERVI<span style={{ color: '#06D6A0' }}>MED</span>
+                    <h1 className="text-2xl font-black text-white mb-1 tracking-tight leading-tight">
+                        Sistema de Salud <br /> Institucional <span className="text-white/70">MINPPAL</span>
                     </h1>
-                    <p className="text-white/50 text-sm font-medium tracking-widest uppercase">Minppal</p>
                     <p className="text-white/60 mt-3 text-sm">Inicia sesión en tu cuenta</p>
                 </div>
 

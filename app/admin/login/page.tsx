@@ -123,7 +123,7 @@ export default function AdminLoginPage() {
                 </div>
 
                 <p className="mt-6 text-center text-xs text-gray-600">
-                    Sistema de Seguridad Servimed Minppal v2.0
+                    Sistema de Seguridad Sistema de Salud Institucional MINPPAL v2.0
                 </p>
             </div>
         </div>
