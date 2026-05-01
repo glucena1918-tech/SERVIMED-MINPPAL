@@ -70,12 +70,14 @@ export default function PatientHistoryPage() {
     const [loading, setLoading] = useState(true);
     const [patient, setPatient] = useState<PatientData | null>(null);
     const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+    const [activeAppointment, setActiveAppointment] = useState<any>(null);
     const [showAddForm, setShowAddForm] = useState(false);
 
     // Estado del formulario (adaptado al formato oficial)
     const [formData, setFormData] = useState({
         diagnosis: '',
         symptoms: '', // Motivo de Consulta
+        consultationType: '',
         // Signos Vitales
         temperature: '',
         systolicPressure: '',
@@ -153,6 +155,25 @@ export default function PatientHistoryPage() {
 
             if (recordsError) throw recordsError;
             setMedicalRecords(records || []);
+
+            // 3. Cargar cita activa para hoy (si existe)
+            const today = new Date().toISOString().split('T')[0];
+            const { data: appointment } = await supabase
+                .from('appointments')
+                .select('*')
+                .eq('patient_id', (patientData as any).id)
+                .eq('appointment_date', today)
+                .eq('status', 'confirmed')
+                .single();
+            
+            if (appointment) {
+                setActiveAppointment(appointment);
+                setFormData(prev => ({
+                    ...prev,
+                    consultationType: appointment.consultation_type || '',
+                    symptoms: appointment.reason || prev.symptoms
+                }));
+            }
 
         } catch (error) {
             console.error('Error cargando datos del paciente:', error);
@@ -257,6 +278,7 @@ export default function PatientHistoryPage() {
                     treatment_indications: validIndications,
                     requires_rest: formData.requiresRest,
                     rest_days: formData.requiresRest ? formData.restDays : 0,
+                    consultation_type: formData.consultationType,
                     prescriptions: { text: prescriptionsText }, // Legacy fallback
                     notes: formData.notes
                 } as any)
@@ -308,6 +330,7 @@ export default function PatientHistoryPage() {
             setFormData({
                 diagnosis: '',
                 symptoms: '',
+                consultationType: '',
                 temperature: '',
                 systolicPressure: '',
                 diastolicPressure: '',
@@ -430,6 +453,31 @@ export default function PatientHistoryPage() {
             </nav>
 
             <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+                {/* Alerta de Cita Activa */}
+                {activeAppointment && (
+                    <div className="mb-6 bg-blue-600 rounded-xl p-4 text-white shadow-lg flex items-center justify-between animate-bounce-slow">
+                        <div className="flex items-center">
+                            <div className="bg-white/20 p-2 rounded-lg mr-4 text-2xl">🗓️</div>
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-wider opacity-80">Cita Programada para Hoy</p>
+                                <h3 className="font-bold text-lg">
+                                    {activeAppointment.consultation_type || 'Consulta General'} 
+                                    <span className="mx-2 opacity-50">|</span> 
+                                    <span className="text-blue-200">{activeAppointment.appointment_time?.slice(0, 5)}</span>
+                                </h3>
+                            </div>
+                        </div>
+                        {!showAddForm && (
+                            <button 
+                                onClick={() => setShowAddForm(true)}
+                                className="bg-white text-blue-600 px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-50 transition shadow-sm"
+                            >
+                                Iniciar Atención
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {/* Datos del Paciente */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
@@ -596,7 +644,27 @@ export default function PatientHistoryPage() {
                             </div>
 
                             {/* Diagnóstico y Motivo */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Tipo de Consulta *</label>
+                                    <select
+                                        required
+                                        value={formData.consultationType}
+                                        onChange={(e) => setFormData({ ...formData, consultationType: e.target.value })}
+                                        className="w-full rounded-md border-gray-300 shadow-sm focus:border-accent focus:ring-accent py-2 px-3 border bg-white text-sm"
+                                    >
+                                        <option value="">Seleccione...</option>
+                                        <option value="Preventiva / Chequeo anual.">Preventiva / Chequeo anual.</option>
+                                        <option value="Nueva consulta / Primera vez.">Nueva consulta / Primera vez.</option>
+                                        <option value="Consulta por problema nuevo.">Consulta por problema nuevo.</option>
+                                        <option value="Control de enfermedad crónica.">Control de enfermedad crónica.</option>
+                                        <option value="Seguimiento / Revisión de evolución.">Seguimiento / Revisión de evolución.</option>
+                                        <option value="Revisión de resultados.">Revisión de resultados.</option>
+                                        <option value="Vacaciones (Control salida).">Vacaciones (Control salida).</option>
+                                        <option value="Vacaciones (Control regreso).">Vacaciones (Control regreso).</option>
+                                        <option value="Consulta Nuevo Ingreso.">Consulta Nuevo Ingreso.</option>
+                                    </select>
+                                </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1">Motivo de Consulta (Síntomas)</label>
                                     <textarea
@@ -993,6 +1061,11 @@ export default function PatientHistoryPage() {
                                                 <p className="text-sm text-gray-600 mt-1">
                                                     Dr. {record.doctor?.full_name} - {record.doctor?.specialty}
                                                 </p>
+                                                {record.consultation_type && (
+                                                    <span className="inline-block mt-2 bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-blue-200">
+                                                        🩺 {record.consultation_type}
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="text-right">
                                                 <span className="bg-accent/10 text-accent px-3 py-1 rounded-full text-xs font-bold border border-accent/20 block mb-2">

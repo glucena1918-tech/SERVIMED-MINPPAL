@@ -177,6 +177,7 @@ export type Database = {
                     notes: string | null
                     patient_id: string | null
                     reason: string | null
+                    consultation_type: string | null
                     status: Database["public"]["Enums"]["appointment_status"] | null
                     updated_at: string | null
                 }
@@ -193,6 +194,7 @@ export type Database = {
                     notes?: string | null
                     patient_id?: string | null
                     reason?: string | null
+                    consultation_type?: string | null
                     status?: Database["public"]["Enums"]["appointment_status"] | null
                     updated_at?: string | null
                 }
@@ -209,6 +211,7 @@ export type Database = {
                     notes?: string | null
                     patient_id?: string | null
                     reason?: string | null
+                    consultation_type?: string | null
                     status?: Database["public"]["Enums"]["appointment_status"] | null
                     updated_at?: string | null
                 }
@@ -222,6 +225,7 @@ export type Database = {
                     record_date: string
                     diagnosis: string | null
                     symptoms: string | null
+                    consultation_type: string | null
                     treatment: string | null
                     treatment_type: string | null
                     treatment_duration: string | null
@@ -243,6 +247,7 @@ export type Database = {
                     record_date?: string
                     diagnosis?: string | null
                     symptoms?: string | null
+                    consultation_type?: string | null
                     treatment?: string | null
                     treatment_type?: string | null
                     treatment_duration?: string | null
@@ -264,6 +269,7 @@ export type Database = {
                     record_date?: string
                     diagnosis?: string | null
                     symptoms?: string | null
+                    consultation_type?: string | null
                     treatment?: string | null
                     treatment_type?: string | null
                     treatment_duration?: string | null

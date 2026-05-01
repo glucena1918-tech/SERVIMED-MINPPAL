@@ -477,19 +477,19 @@ export default function PatientHistoryPage() {
 
                                     {/* Header del registro */}
                                     <div className="bg-gradient-to-r from-blue-50 to-white p-4 border-b border-gray-100">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <h4 className="font-bold text-lg text-gray-900">{record.diagnosis}</h4>
+                                        <div className="flex justify-between items-start gap-4">
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-lg text-gray-900 leading-tight">{record.diagnosis}</h4>
                                                 <p className="text-sm text-gray-600 mt-1">
                                                     👨‍⚕️ Dr. {record.doctor?.full_name}
                                                     {record.doctor?.specialty && <span className="text-gray-400 ml-2">• {record.doctor.specialty}</span>}
                                                 </p>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="bg-accent/10 text-accent px-3 py-1 rounded-full text-xs font-bold border border-accent/20">
+                                            <div className="text-right shrink-0">
+                                                <span className="inline-block bg-accent/10 text-accent px-3 py-1.5 rounded-xl text-[10px] font-black border border-accent/20 whitespace-nowrap shadow-sm">
                                                     {new Date(record.record_date).toLocaleDateString('es-ES', {
                                                         day: 'numeric', month: 'short', year: 'numeric'
-                                                    })}
+                                                    }).toUpperCase()}
                                                 </span>
                                             </div>
                                         </div>

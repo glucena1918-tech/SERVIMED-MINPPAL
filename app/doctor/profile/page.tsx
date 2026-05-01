@@ -168,14 +168,22 @@ export default function DoctorProfilePage() {
         try {
             setUploading(true);
             const croppedImageBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+            if (!croppedImageBlob) throw new Error('Error al procesar el recorte de la imagen');
 
-            const fileName = `${Math.random()}.jpg`;
-            const filePath = `${fileName}`;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Usuario no encontrado');
+
+            const fileName = `${user.id}/${Date.now()}.jpg`;
+            const filePath = fileName;
 
             // Subir a Supabase
             const { error: uploadError } = await supabase.storage
                 .from('avatars')
-                .upload(filePath, croppedImageBlob);
+                .upload(filePath, croppedImageBlob, {
+                    contentType: 'image/jpeg',
+                    cacheControl: '3600',
+                    upsert: true
+                });
 
             if (uploadError) throw uploadError;
 

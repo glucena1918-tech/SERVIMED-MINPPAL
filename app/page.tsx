@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
 const BG_IMAGES = [
     'https://images.pexels.com/photos/8376277/pexels-photo-8376277.jpeg',
@@ -74,42 +76,7 @@ export default function HomePage() {
                 </div>
             </div>
 
-            {/* ── HEADER ── */}
-            <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b border-white/10"
-                style={{ backgroundColor: 'rgba(2,7,20,0.30)' }}>
-                <nav className="container mx-auto px-6 py-4 flex items-center justify-between">
-                    <Link href="/" className="flex items-center space-x-4 group">
-                        <div className="relative w-14 h-14 overflow-hidden rounded-2xl border-2 border-accent/40 group-hover:border-accent transition-all duration-500 shadow-xl shadow-accent/20">
-                            <img
-                                src="https://images.pexels.com/photos/37340896/pexels-photo-37340896.png"
-                                alt="Logo Sistema de Salud Institucional MINPPAL"
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                            />
-                        </div>
-                        <div className="flex flex-col -space-y-1">
-                            <span className="text-white font-black text-xl tracking-tight leading-none drop-shadow-md">
-                                Sistema de Salud <br />
-                                Institucional <span className="text-white/80">MINPPAL</span>
-                            </span>
-                        </div>
-                    </Link>
-
-                    <div className="flex items-center space-x-8">
-                        <nav className="hidden lg:flex space-x-8 text-xs font-bold text-white/60 uppercase tracking-widest">
-                            <a href="#" className="hover:text-accent transition-colors">Especialidades</a>
-                            <Link href="/help" className="hover:text-accent transition-colors">Ayuda</Link>
-                        </nav>
-                        <div className="h-6 w-px bg-white/15 hidden lg:block" />
-                        <Link
-                            href="/admin/login"
-                            className="group relative overflow-hidden bg-accent text-white px-8 py-3 rounded-2xl font-black text-sm tracking-widest uppercase shadow-xl shadow-accent/30 hover:-translate-y-0.5 hover:shadow-[0_0_30px_rgba(6,214,160,0.5)] transition-all duration-300 active:scale-95"
-                        >
-                            <span className="relative z-10">Acceder</span>
-                            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                        </Link>
-                    </div>
-                </nav>
-            </header>
+            <Header />
 
             {/* ── HERO ── */}
             <main className="relative container mx-auto px-6 pt-64 pb-32 z-10">
@@ -189,37 +156,47 @@ export default function HomePage() {
                             </div>
                         ))}
                     </div>
-                </div>
-            </main>
-
-            {/* ── FOOTER ── */}
-            <footer className="relative z-10 border-t border-white/8" style={{ backgroundColor: 'rgba(2,7,20,0.95)' }}>
-                <div className="container mx-auto px-6 py-16 text-center">
-                    <div className="flex flex-col items-center gap-6">
-                        <div className="flex items-center gap-3">
-                            <img
-                                src="https://images.pexels.com/photos/37340896/pexels-photo-37340896.png"
-                                className="w-10 h-10 object-cover rounded-xl border border-white/10"
-                                alt=""
-                            />
-                            <span className="text-white font-black tracking-tight text-xl uppercase">Sistema de Salud Institucional MINPPAL</span>
-                        </div>
-                        <p className="text-white/30 text-sm max-w-xs leading-relaxed">
-                            Tecnología al servicio de la salud de la familia MINPPAL.
-                        </p>
-                        <div className="pt-6 border-t border-white/8 w-full text-white/20 text-[10px] uppercase tracking-[0.4em] font-bold">
-                            &copy; 2026 Ministerio del Poder Popular para la Alimentación
+                    
+                    <div className="mt-48 mb-12 animate-fade-in-up">
+                        <h2 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter leading-[1.1] drop-shadow-2xl">
+                            Donde cada paciente <br />
+                            <span className="relative" style={{ 
+                                background: 'linear-gradient(90deg, #15F0EB, #06D6A0, #15F0EB)',
+                                backgroundSize: '200% auto',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                animation: 'shimmer 5s linear infinite',
+                            }}>
+                                importa de verdad.
+                                <span className="absolute -bottom-2 left-0 right-0 h-1.5 bg-accent/30 blur-xl rounded-full" />
+                            </span>
+                        </h2>
+                        <div className="relative inline-block mt-4">
+                            <div className="absolute inset-0 bg-accent/20 blur-2xl rounded-full opacity-50" />
+                            <p className="relative text-xl md:text-2xl text-white/60 max-w-3xl mx-auto font-medium italic tracking-wide">
+                                "Creamos una forma más humana de gestionar la atención médica."
+                            </p>
                         </div>
                     </div>
                 </div>
-            </footer>
+            </main>
 
-            <style jsx global>{`
+            
+            <Footer />
+
+            <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes shimmer {
                     0% { background-position: 0% center; }
                     100% { background-position: 200% center; }
                 }
-            `}</style>
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(30px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in-up {
+                    animation: fadeInUp 1.2s ease-out forwards;
+                }
+            `.replace(/\n/g, '') }} />
         </div>
     );
 }

@@ -60,6 +60,7 @@ export default function DoctorDashboard() {
                             appointment_date, 
                             appointment_time, 
                             reason, 
+                            consultation_type,
                             patient:patient_id (full_name, cedula)
                         `)
                         .eq('doctor_id', doctor.id)
@@ -78,6 +79,7 @@ export default function DoctorDashboard() {
                             appointment_date, 
                             appointment_time, 
                             reason,
+                            consultation_type,
                             status,
                             patient:patient_id (full_name, cedula)
                         `)
@@ -398,6 +400,11 @@ export default function DoctorDashboard() {
                                                 <span className="font-bold flex items-center">
                                                     ⏰ {app.appointment_time?.slice(0, 5)}
                                                 </span>
+                                                {app.consultation_type && (
+                                                    <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-blue-200">
+                                                        🩺 {app.consultation_type}
+                                                    </span>
+                                                )}
                                             </div>
                                             <p className="text-gray-700 italic border-l-2 border-blue-300 pl-3">
                                                 "{app.reason}"
@@ -543,6 +550,11 @@ export default function DoctorDashboard() {
                                                             <div className="flex items-center text-xs text-gray-500 font-mono mt-1">
                                                                 <span className="bg-blue-50 text-blue-600 px-1.5 rounded mr-2">CI</span>
                                                                 {app.patient?.cedula}
+                                                                {app.consultation_type && (
+                                                                    <span className="ml-3 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-blue-100">
+                                                                        🩺 {app.consultation_type}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <p className="text-sm text-gray-600 mt-2 truncate max-w-[220px] flex items-center">
                                                                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full mr-2"></span>

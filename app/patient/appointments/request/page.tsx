@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import Link from 'next/link';
 
@@ -15,7 +15,21 @@ interface Doctor {
 }
 
 export default function RequestAppointmentPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+            </div>
+        }>
+            <RequestAppointmentForm />
+        </Suspense>
+    );
+}
+
+function RequestAppointmentForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const doctorIdParam = searchParams.get('doctor_id');
     const [loading, setLoading] = useState(true);
     const [doctors, setDoctors] = useState<Doctor[]>([]);
     const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
@@ -26,11 +40,24 @@ export default function RequestAppointmentPage() {
 
     // Formulario
     const [selectedDoctorId, setSelectedDoctorId] = useState<string>(''); // Usamos el ID interno de la tabla doctors
+    const [consultationType, setConsultationType] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
     const [reason, setReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    const consultationTypes = [
+        "Preventiva / Chequeo anual.",
+        "Nueva consulta / Primera vez.",
+        "Consulta por problema nuevo.",
+        "Control de enfermedad crónica.",
+        "Seguimiento / Revisión de evolución.",
+        "Revisión de resultados.",
+        "Vacaciones (Control salida).",
+        "Vacaciones (Control regreso).",
+        "Consulta Nuevo Ingreso."
+    ];
 
     // Horarios disponibles (Simulados por ahora, idealmente vendrían del doctor)
     const allTimes = [
@@ -66,6 +93,16 @@ export default function RequestAppointmentPage() {
 
         fetchDoctors();
     }, []);
+
+    // 🆕 Pre-seleccionar médico si viene por URL
+    useEffect(() => {
+        if (doctorIdParam && doctors.length > 0) {
+            setSelectedDoctorId(doctorIdParam);
+            // También establecer la especialidad para que el filtro coincida
+            const doc = doctors.find(d => d.id === doctorIdParam);
+            if (doc) setSelectedSpecialty(doc.specialty);
+        }
+    }, [doctorIdParam, doctors]);
 
     // Filtrar por especialidad
     useEffect(() => {
@@ -149,6 +186,7 @@ export default function RequestAppointmentPage() {
                     doctor_id: selectedDoctorId, // ID interno (seleccionado en el form)
                     appointment_date: date,
                     appointment_time: time,
+                    consultation_type: consultationType,
                     reason: reason,
                     status: 'pending'
                 });
@@ -272,10 +310,37 @@ export default function RequestAppointmentPage() {
                             {!selectedDoctorId && <p className="text-xs text-red-500 mt-2 ml-1">* Seleccione un médico para continuar</p>}
                         </div>
 
-                        {/* Paso 2: Fecha y Hora */}
+                        {/* Paso 2: Tipo de Consulta */}
                         <div className={!selectedDoctorId ? 'opacity-50 pointer-events-none grayscale' : ''}>
                             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
                                 <span className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm">2</span>
+                                Tipo de Consulta
+                            </h2>
+                            <div className="relative">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Seleccione el motivo principal</label>
+                                <select
+                                    required
+                                    value={consultationType}
+                                    onChange={(e) => setConsultationType(e.target.value)}
+                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-accent focus:ring-accent py-2.5 px-3 border appearance-none bg-white transition-all hover:border-accent/50"
+                                >
+                                    <option value="">Seleccione tipo de consulta...</option>
+                                    {consultationTypes.map(type => (
+                                        <option key={type} value={type}>{type}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute inset-y-0 right-0 top-6 flex items-center px-2 pointer-events-none text-gray-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Paso 3: Fecha y Hora */}
+                        <div className={!selectedDoctorId || !consultationType ? 'opacity-50 pointer-events-none grayscale' : ''}>
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                                <span className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm">3</span>
                                 Fecha y Hora Preferida
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -322,10 +387,10 @@ export default function RequestAppointmentPage() {
                             </div>
                         </div>
 
-                        {/* Paso 3: Motivo */}
-                        <div className={!selectedDoctorId || !date || !time ? 'opacity-50 pointer-events-none grayscale' : ''}>
+                        {/* Paso 4: Motivo */}
+                        <div className={!selectedDoctorId || !consultationType || !date || !time ? 'opacity-50 pointer-events-none grayscale' : ''}>
                             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                                <span className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm">3</span>
+                                <span className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm">4</span>
                                 Motivo de la Consulta
                             </h2>
                             <textarea
@@ -342,7 +407,7 @@ export default function RequestAppointmentPage() {
                         <div className="pt-4 border-t border-gray-100 flex justify-end">
                             <button
                                 type="submit"
-                                disabled={submitting || !selectedDoctorId || !date || !time || !reason}
+                                disabled={submitting || !selectedDoctorId || !consultationType || !date || !time || !reason}
                                 className="px-8 py-3 bg-accent text-white font-bold rounded-lg hover:bg-accent-600 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                             >
                                 {submitting ? 'Enviando...' : 'Confirmar Solicitud'}
