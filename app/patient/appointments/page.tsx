@@ -29,6 +29,9 @@ export default function PatientAppointmentsPage() {
 
                 if (patient) {
                     // Cargar citas
+                    const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+                    const today = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
+
                     const { data: apps, error } = await supabase
                         .from('appointments')
                         .select(`
@@ -41,8 +44,9 @@ export default function PatientAppointmentsPage() {
                             doctor:doctor_id (full_name, specialty, avatar_url)
                         `)
                         .eq('patient_id', patient.id)
-                        .order('appointment_date', { ascending: false })
-                        .order('appointment_time', { ascending: false }); // Las más recientes arriba
+                        .gte('appointment_date', today)
+                        .order('appointment_date', { ascending: true })
+                        .order('appointment_time', { ascending: true }); // Orden cronológico estricto
 
                     if (error) console.error('Error cargando citas:', error);
                     setAppointments(apps || []);
@@ -162,10 +166,10 @@ export default function PatientAppointmentsPage() {
                                         {/* Fecha Calendario */}
                                         <div className="flex flex-col items-center justify-center bg-gray-50 border border-gray-200 rounded-lg w-16 h-16 flex-shrink-0">
                                             <span className="text-xs text-gray-500 uppercase font-bold">
-                                                {new Date(app.appointment_date).toLocaleDateString('es-ES', { month: 'short' }).replace('.', '')}
+                                                {new Date(app.appointment_date + 'T12:00:00').toLocaleDateString('es-ES', { month: 'short' }).replace('.', '')}
                                             </span>
                                             <span className="text-2xl font-black text-gray-800 leading-none">
-                                                {new Date(app.appointment_date).getDate()}
+                                                {new Date(app.appointment_date + 'T12:00:00').getDate()}
                                             </span>
                                         </div>
 

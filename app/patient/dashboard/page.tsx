@@ -29,13 +29,16 @@ export default function PatientDashboard() {
                 setPatientData(patient);
 
                 // Cargar próxima cita (pendiente o confirmada)
+                const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+                const today = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
                 const { data: appointment, error: aError } = await supabase
                     .from('appointments')
                     .select('*, doctors(full_name, specialty)')
                     .eq('patient_id', patient.id)
                     .in('status', ['pending', 'confirmed'])
-                    .gte('appointment_date', new Date().toISOString())
+                    .gte('appointment_date', today)
                     .order('appointment_date', { ascending: true })
+                    .order('appointment_time', { ascending: true })
                     .limit(1)
                     .single();
 
@@ -169,8 +172,12 @@ export default function PatientDashboard() {
                                             {nextAppointment ? (
                                                 <>
                                                     Tu próxima cita es con el <span className="text-[#06D6A0] font-bold">Dr. {nextAppointment.doctors?.full_name?.split(' ').pop()}</span>
-                                                    <span className="block text-sm text-gray-400 mt-1 uppercase tracking-widest font-black">
-                                                        {new Date(nextAppointment.appointment_date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                                    <span className="flex items-center flex-wrap gap-2 text-sm text-gray-400 mt-1 uppercase tracking-widest font-black">
+                                                        <span>{new Date(nextAppointment.appointment_date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                                                        <span className="text-gray-300">|</span>
+                                                        <span className="text-[#06D6A0] bg-[#06D6A0]/10 border border-[#06D6A0]/20 px-2 py-0.5 rounded-lg shadow-sm">
+                                                            ⏰ {nextAppointment.appointment_time?.slice(0, 5)}
+                                                        </span>
                                                     </span>
                                                 </>
                                             ) : (

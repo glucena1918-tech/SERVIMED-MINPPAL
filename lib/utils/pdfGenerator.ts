@@ -200,46 +200,43 @@ export const generateInformeMedico = (
     y = addDocumentTitle(doc, 'INFORME MÉDICO', record.record_date, y);
     y = addPatientBox(doc, patient, y);
 
-    // === SIGNOS VITALES ===
-    // Formato imagen: Temp X °C  Pulso  Sistólica 120  Diastólica 080  Pulso XXX (El layout de la imagen es raro, lo haré lógico y estético)
-    // Usaré: Temperatura | Presión Arterial (Sist/Diast) | Pulso
-
+    // === SIGNOS VITALES (Diseño Mejorado) ===
     const temp = record.temperature ? `${record.temperature} °C` : '--';
     const sist = record.systolic_pressure || '--';
     const diast = record.diastolic_pressure || '--';
     const pulse = record.pulse ? `${record.pulse} ppm` : '--';
 
-    doc.setFontSize(10);
+    // Dibujar fondo sutil para signos vitales
+    doc.setFillColor(252, 241, 241); // Fondo rosado muy pálido (acorde al tema médico/rojo)
+    doc.roundedRect(15, y - 5, 180, 12, 1, 1, 'F');
+    
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(COLORS.BLUE_VITAL[0], COLORS.BLUE_VITAL[1], COLORS.BLUE_VITAL[2]); // Azul claro tipo imagen
-
-    doc.text('Temperatura:', 20, y);
-    doc.setFont('helvetica', 'bold'); // En imagen sale negrita el valor
-    doc.setTextColor(0);
-    doc.text(temp, 45, y);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(COLORS.BLUE_VITAL[0], COLORS.BLUE_VITAL[1], COLORS.BLUE_VITAL[2]);
-    doc.text('Sistólica', 90, y);
+    
+    // Temperatura
+    doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
+    doc.text('TEMPERATURA:', 20, y + 3);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0);
-    doc.text(sist, 107, y);
+    doc.setTextColor(180, 0, 0); // Rojo clínico
+    doc.text(temp, 48, y + 3);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(COLORS.BLUE_VITAL[0], COLORS.BLUE_VITAL[1], COLORS.BLUE_VITAL[2]);
-    doc.text('Diastólica', 125, y);
+    // Presión
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0);
-    doc.text(diast, 145, y);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(COLORS.BLUE_VITAL[0], COLORS.BLUE_VITAL[1], COLORS.BLUE_VITAL[2]);
-    doc.text('Pulso', 165, y);
+    doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
+    doc.text('TENSIÓN ART:', 80, y + 3);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0);
-    doc.text(pulse, 178, y);
+    doc.setTextColor(180, 0, 0);
+    doc.text(`${sist}/${diast} mmHg`, 108, y + 3);
 
-    y += 15; // Espacio generoso
+    // Pulso
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
+    doc.text('PULSO:', 155, y + 3);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(180, 0, 0);
+    doc.text(pulse, 170, y + 3);
+
+    y += 18;
 
     // === MOTIVO ===
     doc.setFont('helvetica', 'bold');

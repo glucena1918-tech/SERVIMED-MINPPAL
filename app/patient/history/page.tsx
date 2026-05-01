@@ -18,6 +18,11 @@ interface MedicalRecord {
         full_name: string;
         specialty: string;
     };
+    temperature?: string;
+    systolic_pressure?: string;
+    diastolic_pressure?: string;
+    pulse?: string;
+    consultation_type?: string;
 }
 
 // ── PDF GENERATOR ──────────────────────────────────────────────
@@ -200,6 +205,34 @@ const generatePDF = async (records: MedicalRecord[], patientName: string) => {
         }
 
         y += 18;
+        checkY(15);
+        // ── SIGNOS VITALES (Diseño Mejorado) ──
+        if (record.temperature || record.systolic_pressure || record.pulse) {
+            checkY(18);
+            doc.setFillColor(254, 242, 242);
+            doc.roundedRect(margin, y, contentW, 12, 2, 2, 'F');
+            doc.setDrawColor(252, 165, 165);
+            doc.setLineWidth(0.3);
+            doc.roundedRect(margin, y, contentW, 12, 2, 2, 'S');
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(7.5);
+            doc.setTextColor(185, 28, 28);
+            
+            // Labels
+            doc.text('TEMPERATURA', margin + 5, y + 4.5);
+            doc.text('TENSIÓN ART.', margin + 65, y + 4.5);
+            doc.text('PULSO', margin + 125, y + 4.5);
+
+            // Valores
+            doc.setFontSize(9);
+            doc.setTextColor(153, 27, 27);
+            doc.text(`${record.temperature || '--'} °C`, margin + 5, y + 9);
+            doc.text(`${record.systolic_pressure || '--'}/${record.diastolic_pressure || '--'} mmHg`, margin + 65, y + 9);
+            doc.text(`${record.pulse || '--'} ppm`, margin + 125, y + 9);
+
+            y += 16;
+        }
 
         // ── DIAGNÓSTICO ──
         checkY(20);
@@ -240,7 +273,7 @@ const generatePDF = async (records: MedicalRecord[], patientName: string) => {
         // ── RECETA ──
         if (record.prescriptions) {
             checkY(22);
-            const rxText = record.prescriptions?.text || JSON.stringify(record.prescriptions);
+            const rxText = record.prescriptions?.text !== undefined ? record.prescriptions.text : JSON.stringify(record.prescriptions);
             const rxLines = doc.splitTextToSize(rxText, contentW - 10);
             const rxH = 10 + rxLines.length * 4.5;
 
@@ -256,7 +289,7 @@ const generatePDF = async (records: MedicalRecord[], patientName: string) => {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(7);
             doc.setTextColor(...COLORS.accentDark);
-            doc.text('💊  RECETA MÉDICA', margin + 6, y + 5);
+            doc.text('RECETA MÉDICA', margin + 6, y + 5);
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
             doc.setTextColor(6, 78, 59);
@@ -353,15 +386,16 @@ export default function PatientHistoryPage() {
                 .single();
 
             if (patient) {
-                setPatientName(patient.full_name || 'Paciente');
+                setPatientName((patient as any).full_name || 'Paciente');
                 const { data: records, error } = await supabase
                     .from('medical_records')
                     .select(`
                         id, record_date, diagnosis, symptoms,
                         treatment, prescriptions, lab_results, notes,
+                        temperature, systolic_pressure, diastolic_pressure, pulse, consultation_type,
                         doctor:doctor_id ( full_name, specialty )
                     `)
-                    .eq('patient_id', patient.id)
+                    .eq('patient_id', (patient as any).id)
                     .order('record_date', { ascending: false })
                     .order('created_at', { ascending: false });
 
@@ -497,6 +531,35 @@ export default function PatientHistoryPage() {
 
                                     {/* Contenido del registro */}
                                     <div className="p-5 space-y-4">
+                                        {/* Signos Vitales Bar */}
+                                        {(record.temperature || record.systolic_pressure || record.pulse) && (
+                                            <div className="mx-0 mb-4 p-2.5 bg-red-50/50 rounded-xl border border-red-100/50 flex flex-wrap gap-4 items-center justify-around shadow-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs">🌡️</span>
+                                                    <div>
+                                                        <p className="text-[8px] font-black text-red-400 uppercase tracking-tighter leading-none">Temp.</p>
+                                                        <p className="text-xs font-bold text-red-700">{record.temperature || '--'}°C</p>
+                                                    </div>
+                                                </div>
+                                                <div className="w-px h-5 bg-red-100 hidden md:block" />
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs">🩸</span>
+                                                    <div>
+                                                        <p className="text-[8px] font-black text-red-400 uppercase tracking-tighter leading-none">Presión</p>
+                                                        <p className="text-xs font-bold text-red-700">{record.systolic_pressure || '--'}/{record.diastolic_pressure || '--'} mmHg</p>
+                                                    </div>
+                                                </div>
+                                                <div className="w-px h-5 bg-red-100 hidden md:block" />
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs">💓</span>
+                                                    <div>
+                                                        <p className="text-[8px] font-black text-red-400 uppercase tracking-tighter leading-none">Pulso</p>
+                                                        <p className="text-xs font-bold text-red-700">{record.pulse || '--'} ppm</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {record.symptoms && (
                                             <div>
                                                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1">Síntomas Reportados</span>
@@ -511,10 +574,10 @@ export default function PatientHistoryPage() {
                                         )}
                                         {record.prescriptions && (
                                             <div>
-                                                <span className="text-xs font-bold text-green-700 uppercase tracking-wide block mb-1">💊 Receta Médica</span>
+                                                <span className="text-xs font-bold text-green-700 uppercase tracking-wide block mb-1">Receta Médica</span>
                                                 <div className="bg-green-50 border-2 border-green-200 p-3 rounded-lg">
                                                     <p className="text-sm text-green-900 font-medium">
-                                                        {record.prescriptions?.text || JSON.stringify(record.prescriptions)}
+                                                        {record.prescriptions?.text !== undefined ? record.prescriptions.text : JSON.stringify(record.prescriptions)}
                                                     </p>
                                                 </div>
                                             </div>

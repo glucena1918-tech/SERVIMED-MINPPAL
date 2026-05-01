@@ -66,7 +66,8 @@ export default function DoctorDashboard() {
 
                     if (pending) setPendingAppointments(pending as any[]);
 
-                    const today = new Date().toISOString().split('T')[0];
+                    const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+                    const today = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
                     const { data: upcoming } = await supabase
                         .from('appointments')
                         .select(`
@@ -201,6 +202,9 @@ export default function DoctorDashboard() {
         );
     }
 
+    const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+    const localTodayStr = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
+
     return (
         <div className="min-h-screen relative overflow-hidden bg-[#020714]">
             {/* 🏥 Fondo Institucional - Alta Nitidez */}
@@ -310,7 +314,7 @@ export default function DoctorDashboard() {
                 {/* 2. Métricas de Impacto (Analytics) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[
-                        { label: 'Pacientes Hoy', value: upcomingAppointments.filter(a => a.appointment_date === new Date().toISOString().split('T')[0] && a.status === 'confirmed').length, icon: '📅', color: 'accent' },
+                        { label: 'Pacientes Hoy', value: upcomingAppointments.filter(a => a.appointment_date === localTodayStr && a.status === 'confirmed').length, icon: '📅', color: 'accent' },
                         { label: 'Nuevas Solicitudes', value: pendingAppointments.length, icon: '📩', color: 'blue-400' },
                         { label: 'Total Semana', value: upcomingAppointments.length + pendingAppointments.length, icon: '📈', color: 'purple-400' }
                     ].map((stat, i) => (
@@ -463,7 +467,7 @@ export default function DoctorDashboard() {
                                             <div className="flex flex-wrap gap-4 mb-4">
                                                 <div className="flex items-center gap-2 text-white/80 text-sm font-bold">
                                                     <span className="opacity-50 text-base">📅</span>
-                                                    {new Date(app.appointment_date + 'T00:00:00').toLocaleDateString('es-VE', { day: '2-digit', month: 'long' })}
+                                                    {new Date(app.appointment_date + 'T12:00:00').toLocaleDateString('es-VE', { day: '2-digit', month: 'long' })}
                                                 </div>
                                                 <div className="flex items-center gap-2 text-white/80 text-sm font-bold">
                                                     <span className="opacity-50 text-base">⏰</span>
@@ -557,7 +561,7 @@ export default function DoctorDashboard() {
                             today.setHours(0, 0, 0, 0);
 
                             const filteredAppointments = filtered.filter(app => {
-                                const appDate = new Date(app.appointment_date + 'T00:00:00');
+                                const appDate = new Date(app.appointment_date + 'T12:00:00');
                                 appDate.setHours(0, 0, 0, 0);
 
                                 if (agendaView === 'today') {
@@ -608,11 +612,14 @@ export default function DoctorDashboard() {
                                                                     <span className="px-2 py-0.5 rounded-lg bg-blue-500/20 text-blue-400 text-[8px] font-black uppercase tracking-widest border border-blue-500/20">Agendada</span>
                                                                 )}
                                                             </div>
-                                                            <div className="flex items-center gap-4 mt-2">
-                                                                <p className="text-white/40 text-[10px] font-mono tracking-tighter">C.I. {app.patient?.cedula}</p>
-                                                                {app.consultation_type && (
-                                                                    <span className="text-accent/60 text-[9px] font-black uppercase tracking-widest">🩺 {app.consultation_type}</span>
-                                                                )}
+                                                            <div className="flex flex-col gap-1 mt-2">
+                                                                <p className="text-white/40 text-[10px] font-mono tracking-tighter uppercase">C.I. {app.patient?.cedula}</p>
+                                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                                    <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse" />
+                                                                    <span className="text-red-500 font-black text-[11px] uppercase tracking-wider drop-shadow-md">
+                                                                        {app.consultation_type || 'CONSULTA POR DEFINIR'}
+                                                                    </span>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>

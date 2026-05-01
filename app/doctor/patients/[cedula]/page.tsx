@@ -45,6 +45,7 @@ interface MedicalRecord {
     prescriptions: any;
     lab_results: string;
     notes: string;
+    consultation_type?: string;
     // Signos Vitales
     temperature?: string;
     systolic_pressure?: string;
@@ -98,6 +99,28 @@ export default function PatientHistoryPage() {
         reqOther: false,
         otherRequest: ''
     });
+
+    const [showScrollTop, setShowScrollTop] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY > 400) {
+                setShowScrollTop(true);
+            } else {
+                setShowScrollTop(false);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const scrollToTop = () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    };
 
     // Estado para medicamentos (KPIs)
     interface PrescriptionItemState {
@@ -157,21 +180,24 @@ export default function PatientHistoryPage() {
             setMedicalRecords(records || []);
 
             // 3. Cargar cita activa para hoy (si existe)
-            const today = new Date().toISOString().split('T')[0];
-            const { data: appointment } = await supabase
+            const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+            const today = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
+            const { data: appointments } = await supabase
                 .from('appointments')
                 .select('*')
                 .eq('patient_id', (patientData as any).id)
                 .eq('appointment_date', today)
                 .eq('status', 'confirmed')
-                .single();
+                .order('appointment_time', { ascending: true })
+                .limit(1);
             
-            if (appointment) {
+            if (appointments && appointments.length > 0) {
+                const appointment = appointments[0];
                 setActiveAppointment(appointment);
                 setFormData(prev => ({
                     ...prev,
-                    consultationType: appointment.consultation_type || '',
-                    symptoms: appointment.reason || prev.symptoms
+                    consultationType: (appointment as any).consultation_type || '',
+                    symptoms: (appointment as any).reason || prev.symptoms
                 }));
             }
 
@@ -182,6 +208,17 @@ export default function PatientHistoryPage() {
             setLoading(false);
         }
     };
+
+    // Sincronizar formulario con cita activa (Pre-llenado robusto)
+    useEffect(() => {
+        if (activeAppointment) {
+            setFormData(prev => ({
+                ...prev,
+                consultationType: activeAppointment.consultation_type || '',
+                symptoms: activeAppointment.reason || prev.symptoms
+            }));
+        }
+    }, [activeAppointment]);
 
     const addPrescriptionItem = () => {
         if (!newItem.medicine_name.trim()) {
@@ -258,7 +295,7 @@ export default function PatientHistoryPage() {
                 .from('medical_records')
                 .insert({
                     patient_id: (patient as any).id,
-                    doctor_id: doctor.id,
+                    doctor_id: (doctor as any).id,
                     record_date: new Date().toISOString().split('T')[0],
                     diagnosis: formData.diagnosis,
                     symptoms: formData.symptoms,
@@ -309,19 +346,17 @@ export default function PatientHistoryPage() {
             }
 
             // ✅ ACTUALIZAR CITA A 'COMPLETED'
-            const today = new Date().toISOString().split('T')[0];
-            await supabase
-                .from('appointments')
-                .update({
-                    status: 'completed',
-                    medical_record_id: recordId, // Cast as any needed if types are outdated
-                    updated_at: new Date().toISOString()
-                } as any)
-                .eq('patient_id', (patient as any).id)
-                .eq('doctor_id', doctor.id)
-                .eq('appointment_date', today)
-                .eq('status', 'confirmed');
- 
+            if (activeAppointment && activeAppointment.id) {
+                await supabase
+                    .from('appointments')
+                    // @ts-ignore
+                    .update({
+                        status: 'completed',
+                        medical_record_id: recordId, // Cast as any needed if types are outdated
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', activeAppointment.id);
+            }
             toast.success('✅ Registro médico guardado exitosamente.');
             setFormErrors({});
             setShowAddForm(false);
@@ -396,7 +431,7 @@ export default function PatientHistoryPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-[#F5F5F7] flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
             </div>
         );
@@ -404,7 +439,7 @@ export default function PatientHistoryPage() {
 
     if (!patient) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-[#F5F5F7] flex items-center justify-center">
                 <div className="text-center">
                     <h2 className="text-2xl font-bold text-gray-900 mb-4">Paciente no encontrado</h2>
                     <Link href="/doctor/dashboard" className="text-accent hover:underline">
@@ -429,9 +464,9 @@ export default function PatientHistoryPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-[#F5F5F7]">
             {/* Header */}
-            <nav className="bg-white shadow-sm border-b sticky top-0 z-30">
+            <nav className="bg-white/80 backdrop-blur-md shadow-sm border-b sticky top-0 z-30">
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex items-center">
@@ -480,7 +515,7 @@ export default function PatientHistoryPage() {
                 )}
 
                 {/* Datos del Paciente */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm border border-white/60 p-6 mb-8">
                     <div className="flex items-start justify-between mb-6">
                         <div>
                             <h2 className="text-2xl font-bold text-gray-900">{patient.full_name}</h2>
@@ -510,90 +545,85 @@ export default function PatientHistoryPage() {
                             <span className="font-medium text-gray-900">{patient.contact_phone || patient.phone || '--'}</span>
                         </div>
 
-                        {/* Alergias */}
-                        {(patient.allergies_food || patient.allergies_medicine) && (
-                            <div className="md:col-span-4">
-                                <span className="text-gray-500 block mb-1">Alergias:</span>
+                        {/* Secciones de Salud con diseño suave */}
+                        <div className="md:col-span-4 mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Alergias */}
+                            <div className="bg-white/50 p-4 rounded-xl border border-gray-100 shadow-sm">
+                                <span className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] block mb-3">
+                                    🚫 ALERGIAS Y REACCIONES
+                                </span>
                                 <div className="flex flex-wrap gap-2">
-                                    {patient.allergies_food && (
-                                        <span className="bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-medium border border-red-200">
-                                            🍽️ Comidas: {patient.allergies_food}
-                                        </span>
-                                    )}
-                                    {patient.allergies_medicine && (
-                                        <span className="bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-medium border border-red-200">
-                                            💊 Medicamentos: {patient.allergies_medicine}
-                                        </span>
-                                    )}
+                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${patient.allergies_food ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-400 border-gray-100 opacity-60'}`}>
+                                        🍱 Alimentos: {patient.allergies_food || 'Ninguna'}
+                                    </span>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${patient.allergies_medicine ? 'bg-orange-50 text-orange-600 border-orange-100' : 'bg-gray-50 text-gray-400 border-gray-100 opacity-60'}`}>
+                                        💊 Medicamentos: {patient.allergies_medicine || 'Ninguna'}
+                                    </span>
                                 </div>
                             </div>
-                        )}
 
-                        {/* Enfermedades Crónicas */}
-                        {patient.chronic_conditions && (
-                            <div className="md:col-span-4 bg-orange-50 border border-orange-200 rounded-lg p-3">
-                                <span className="text-xs font-bold text-orange-700 uppercase tracking-wide block mb-1">🯠 Enfermedades Previas / Crónicas</span>
-                                <p className="text-sm text-gray-800">{patient.chronic_conditions}</p>
+                            {/* Enfermedades Crónicas */}
+                            <div className="bg-[#FFF8F1] p-4 rounded-xl border border-[#FFEDD5] shadow-sm">
+                                <span className="text-[#9A3412] text-[10px] font-black uppercase tracking-[0.2em] block mb-2">
+                                    📋 CONDICIONES CRÓNICAS
+                                </span>
+                                <p className="text-[#7C2D12] text-sm font-medium">{patient.chronic_conditions || 'Sin registros'}</p>
                             </div>
-                        )}
 
-                        {/* Dispositivos Médicos */}
-                        {patient.medical_devices && (
-                            <div className="md:col-span-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                <span className="text-xs font-bold text-blue-700 uppercase tracking-wide block mb-1">🦴 Dispositivos Médicos</span>
-                                <p className="text-sm text-gray-800">{patient.medical_devices}</p>
+                            {/* Dispositivos Médicos */}
+                            <div className="bg-[#F0F9FF] p-4 rounded-xl border border-[#E0F2FE] shadow-sm">
+                                <span className="text-[#0369A1] text-[10px] font-black uppercase tracking-[0.2em] block mb-2">
+                                    🦾 DISPOSITIVOS / PRÓTESIS
+                                </span>
+                                <p className="text-[#0C4A6E] text-sm font-medium">{patient.medical_devices || 'Sin registros'}</p>
                             </div>
-                        )}
 
-                        {/* Cirugías Previas */}
-                        {patient.previous_surgeries && (
-                            <div className="md:col-span-4 bg-purple-50 border border-purple-200 rounded-lg p-3">
-                                <span className="text-xs font-bold text-purple-700 uppercase tracking-wide block mb-1">🔪 Cirugías Previas</span>
-                                <p className="text-sm text-gray-800">{patient.previous_surgeries}</p>
+                            {/* Cirugías */}
+                            <div className="bg-[#F5F3FF] p-4 rounded-xl border border-[#EDE9FE] shadow-sm">
+                                <span className="text-[#6D28D9] text-[10px] font-black uppercase tracking-[0.2em] block mb-2">
+                                    🔪 ANTECEDENTES QUIRÚRGICOS
+                                </span>
+                                <p className="text-[#4C1D95] text-sm font-medium">{patient.previous_surgeries || 'Sin registros'}</p>
                             </div>
-                        )}
-
-                        {/* Antecedentes Familiares */}
-                        {patient.family_diseases && (
-                            <div className="md:col-span-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                                <span className="text-xs font-bold text-amber-700 uppercase tracking-wide block mb-1">👨‍👩‍👧 Antecedentes Familiares</span>
-                                <p className="text-sm text-gray-800">{patient.family_diseases}</p>
-                            </div>
-                        )}
-
-                        {/* Vacunas */}
-                        {patient.vaccines && (
-                            <div className="md:col-span-4 bg-green-50 border border-green-200 rounded-lg p-3">
-                                <span className="text-xs font-bold text-green-700 uppercase tracking-wide block mb-1">💉 Vacunas Aplicadas</span>
-                                <p className="text-sm text-gray-800">{patient.vaccines}</p>
-                            </div>
-                        )}
+                        </div>
 
                         {/* Contacto de Emergencia */}
                         {(patient.emergency_contact_name || patient.emergency_contact_phone) && (
-                            <div className="md:col-span-4">
-                                <span className="text-gray-500 block mb-1">🆘 Contacto de Emergencia:</span>
-                                <span className="font-medium text-gray-900">
-                                    {patient.emergency_contact_name} {patient.emergency_contact_phone ? `— ${patient.emergency_contact_phone}` : ''}
-                                </span>
+                            <div className="md:col-span-4 mt-4 p-4 bg-gray-50/50 rounded-xl border border-gray-100 flex items-center justify-between">
+                                <div>
+                                    <span className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] block mb-1">🆘 CONTACTO DE EMERGENCIA</span>
+                                    <span className="font-bold text-gray-800">{patient.emergency_contact_name}</span>
+                                </div>
+                                <div className="text-right">
+                                    <span className="bg-white px-3 py-1 rounded-full text-blue-600 font-bold border border-blue-100 text-xs">
+                                        📞 {patient.emergency_contact_phone}
+                                    </span>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Formulario de Nuevo Registro (FORMATO OFICIAL) */}
+                {/* Formulario de Nuevo Registro (Diseño más suave) */}
                 {showAddForm && (
-                    <div className="bg-gradient-to-br from-blue-50 to-white border-2 border-blue-200 rounded-xl p-6 mb-8 shadow-lg">
-                        <h3 className="text-lg font-bold text-gray-900 mb-1 flex items-center">
-                            <span className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm">📄</span>
-                            Nuevo Informe Médico
-                        </h3>
-                        <p className="text-xs text-gray-500 mb-6 ml-11">Formato oficial <span style={{ color: '#0F75C1' }}>Sistema de Salud Institucional</span> <span style={{ color: '#292358' }}>MINPPAL</span></p>
+                    <div className="bg-white/80 backdrop-blur-md border border-blue-100 rounded-3xl p-8 mb-12 shadow-xl animate-in fade-in slide-in-from-top-4 duration-500">
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <h3 className="text-2xl font-black text-gray-900 tracking-tight flex items-center">
+                                    Nuevo Informe Médico
+                                    <span className="ml-3 px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] rounded uppercase tracking-widest">Digital</span>
+                                </h3>
+                                <p className="text-gray-400 text-sm mt-1">Complete los campos siguiendo el protocolo MINPPAL</p>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest block">ID Trámite</span>
+                                <span className="text-xs font-mono text-gray-400">#REF-{new Date().getTime().toString().slice(-6)}</span>
+                            </div>
+                        </div>
 
-                        <form onSubmit={handleSubmitRecord} className="space-y-6">
-
+                        <form onSubmit={handleSubmitRecord} className="space-y-8">
                             {/* Signos Vitales */}
-                            <div className="bg-red-50 p-4 rounded-lg border border-red-100 mb-4">
+                            <div className="bg-[#FFF1F2]/50 p-6 rounded-2xl border border-red-50">
                                 <label className="block text-sm font-bold text-red-800 mb-3">❤️ Signos Vitales (Obligatorio)</label>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div>
@@ -1049,12 +1079,12 @@ export default function PatientHistoryPage() {
                     </h3>
 
                     {medicalRecords.length > 0 ? (
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             {medicalRecords.map((record) => (
-                                <div key={record.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition">
+                                <div key={record.id} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/60 overflow-hidden hover:shadow-md transition-all duration-300">
 
                                     {/* Header */}
-                                    <div className="bg-gradient-to-r from-blue-50 to-white p-4 border-b border-gray-100">
+                                    <div className="bg-gradient-to-r from-blue-50/50 to-transparent p-4 border-b border-gray-100">
                                         <div className="flex justify-between items-start">
                                             <div>
                                                 <h4 className="font-bold text-lg text-gray-900">{record.diagnosis}</h4>
@@ -1081,24 +1111,53 @@ export default function PatientHistoryPage() {
                                         </div>
                                     </div>
 
+                                    {/* Signos Vitales Bar */}
+                                    {(record.temperature || record.systolic_pressure || record.pulse) && (
+                                        <div className="mx-5 mt-4 p-3 bg-red-50/30 rounded-xl border border-red-100/50 flex flex-wrap gap-4 items-center justify-around shadow-sm">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm">🌡️</span>
+                                                <div>
+                                                    <p className="text-[9px] font-black text-red-400 uppercase tracking-tighter leading-none">Temp.</p>
+                                                    <p className="text-xs font-bold text-red-700">{record.temperature || '--'}°C</p>
+                                                </div>
+                                            </div>
+                                            <div className="w-px h-6 bg-red-100 hidden md:block" />
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm">🩸</span>
+                                                <div>
+                                                    <p className="text-[9px] font-black text-red-400 uppercase tracking-tighter leading-none">Presión</p>
+                                                    <p className="text-xs font-bold text-red-700">{record.systolic_pressure || '--'}/{record.diastolic_pressure || '--'} mmHg</p>
+                                                </div>
+                                            </div>
+                                            <div className="w-px h-6 bg-red-100 hidden md:block" />
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm">💓</span>
+                                                <div>
+                                                    <p className="text-[9px] font-black text-red-400 uppercase tracking-tighter leading-none">Pulso</p>
+                                                    <p className="text-xs font-bold text-red-700">{record.pulse || '--'} ppm</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Contenido */}
                                     <div className="p-5 space-y-4">
 
                                         {record.symptoms && (
                                             <div>
-                                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1">Síntomas</span>
-                                                <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">{record.symptoms}</p>
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Motivo de Consulta</span>
+                                                <p className="text-sm text-gray-700 bg-gray-50/50 p-3 rounded-xl border border-gray-100">{record.symptoms}</p>
                                             </div>
                                         )}
 
                                         {record.treatment_indications && Array.isArray(record.treatment_indications) && record.treatment_indications.length > 0 && (
                                             <div>
-                                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-2">Tratamiento a Base De:</span>
-                                                <ol className="space-y-1 bg-blue-50 p-3 rounded border border-blue-100">
+                                                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-2">Tratamiento a Base De:</span>
+                                                <ol className="space-y-2 bg-blue-50/30 p-4 rounded-xl border border-blue-100/50">
                                                     {record.treatment_indications.map((indication, idx) => (
-                                                        <li key={idx} className="text-sm text-gray-800 flex gap-2">
-                                                            <span className="font-bold text-blue-600">{idx + 1}.</span>
-                                                            <span>{indication}</span>
+                                                        <li key={idx} className="text-sm text-gray-800 flex gap-3 items-start">
+                                                            <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5">{idx + 1}</span>
+                                                            <span className="font-medium leading-relaxed">{indication}</span>
                                                         </li>
                                                     ))}
                                                 </ol>
@@ -1107,25 +1166,29 @@ export default function PatientHistoryPage() {
 
                                         {record.treatment_duration && (
                                             <div>
-                                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1">Duración</span>
-                                                <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded inline-block">
-                                                    📅 Por espacio de: <strong>{record.treatment_duration}</strong>
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Duración</span>
+                                                <p className="text-xs font-bold text-gray-600 bg-gray-100/50 px-3 py-1.5 rounded-full border border-gray-100 inline-flex items-center gap-2">
+                                                    ⏱️ {record.treatment_duration}
                                                 </p>
                                             </div>
                                         )}
 
                                         {record.requires_rest && (
-                                            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
-                                                <p className="text-sm font-bold text-yellow-800">
-                                                    ⚠️ Reposo Médico: {record.rest_days} {record.rest_days === 1 ? 'día' : 'días'}
-                                                </p>
+                                            <div className="bg-[#FFFBEB] border border-[#FEF3C7] p-4 rounded-xl flex items-center gap-3">
+                                                <span className="text-xl">🛌</span>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-[#92400E] uppercase tracking-widest">Reposo Médico</p>
+                                                    <p className="text-sm font-bold text-[#78350F]">
+                                                        {record.rest_days} {record.rest_days === 1 ? 'día' : 'días'} de reposo absoluto
+                                                    </p>
+                                                </div>
                                             </div>
                                         )}
 
                                         {/* Visualización de Receta (Legacy o KPI) */}
                                         {(record.prescriptions?.text || (record as any).prescription_items?.length > 0) && (
                                             <div>
-                                                <span className="text-xs font-bold text-green-700 uppercase tracking-wide block mb-1">💊 Receta Médica</span>
+                                                <span className="text-xs font-bold text-green-700 uppercase tracking-wide block mb-1">Receta Médica</span>
                                                 <div className="bg-green-50 border-2 border-green-200 p-3 rounded">
 
                                                     {/* Caso 1: Items KPI Estructurados */}
@@ -1143,7 +1206,7 @@ export default function PatientHistoryPage() {
                                                     ) : (
                                                         /* Caso 2: Texto Legacy */
                                                         <p className="text-sm text-green-900 font-medium whitespace-pre-line">
-                                                            {record.prescriptions?.text || JSON.stringify(record.prescriptions)}
+                                                            {record.prescriptions?.text !== undefined ? record.prescriptions.text : JSON.stringify(record.prescriptions)}
                                                         </p>
                                                     )}
                                                 </div>
@@ -1208,6 +1271,28 @@ export default function PatientHistoryPage() {
                 </div>
 
             </main >
+
+            {/* Botón Volver Arriba (Posición central derecha para evitar conflictos) */}
+            {showScrollTop && (
+                <button
+                    onClick={scrollToTop}
+                    className="fixed right-0 top-1/2 -translate-y-1/2 z-50 flex items-center group"
+                    title="Volver al inicio"
+                >
+                    <div className="bg-accent/90 backdrop-blur-md text-white pl-3 pr-2 py-6 rounded-l-2xl shadow-[-4px_0_15px_rgba(0,0,0,0.1)] border-y border-l border-white/20 transition-all duration-500 transform translate-x-1 group-hover:translate-x-0 flex flex-col items-center gap-2">
+                        <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className="h-5 w-5 animate-bounce-slow" 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                        </svg>
+                        <span className="[writing-mode:vertical-lr] text-[10px] font-black uppercase tracking-widest">Subir</span>
+                    </div>
+                </button>
+            )}
         </div >
     );
 }
