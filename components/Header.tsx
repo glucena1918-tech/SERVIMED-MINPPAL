@@ -14,7 +14,7 @@ export default function Header() {
                 <Link href="/" className="flex items-center space-x-4 group">
                     <div className="relative w-14 h-14 overflow-hidden rounded-2xl border-2 border-accent/40 group-hover:border-accent transition-all duration-500 shadow-xl shadow-accent/20">
                         <img
-                            src="https://images.pexels.com/photos/37340896/pexels-photo-37340896.png"
+                            src="/images/logo-minppal.png"
                             alt="Logo Sistema de Salud Institucional MINPPAL"
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />

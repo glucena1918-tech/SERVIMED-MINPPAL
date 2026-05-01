@@ -60,7 +60,7 @@ const generatePDF = async (records: MedicalRecord[], patientName: string) => {
         });
 
     const logoBase64 = await loadImageAsBase64(
-        'https://images.pexels.com/photos/37342651/pexels-photo-37342651.png'
+        '/images/logo-history.png'
     );
 
     const addPage = () => {
@@ -398,7 +398,7 @@ export default function PatientHistoryPage() {
             {/* ── HERO BANNER ── */}
             <div className="relative h-52 overflow-hidden">
                 <img
-                    src="https://images.pexels.com/photos/8376141/pexels-photo-8376141.jpeg"
+                    src="/images/bg-patient-history.jpeg"
                     alt="Historial Clínico"
                     className="absolute inset-0 w-full h-full object-cover object-center"
                 />

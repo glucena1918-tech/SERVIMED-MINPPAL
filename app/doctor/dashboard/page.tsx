@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
 
@@ -20,7 +21,7 @@ export default function DoctorDashboard() {
 
     // 🆕 Vista de Agenda (filtro temporal)
     type AgendaView = 'today' | 'week' | 'month';
-    const [agendaView, setAgendaView] = useState<AgendaView>('week'); // Default: semana
+    const [agendaView, setAgendaView] = useState<AgendaView>('week'); 
 
     // 🆕 Toggle para mostrar citas completadas
     const [showCompleted, setShowCompleted] = useState(false);
@@ -35,7 +36,6 @@ export default function DoctorDashboard() {
                     return;
                 }
 
-                // 1. Cargar Perfil Médico (Necesitamos el ID interno)
                 const { data: doctor, error: doctorError } = await supabase
                     .from('doctors')
                     .select('*')
@@ -48,11 +48,7 @@ export default function DoctorDashboard() {
 
                 setDoctorData(doctor);
 
-                // Si tenemos el perfil del doctor (y su ID interno), cargamos las citas
                 if (doctor && doctor.id) {
-                    console.log('Buscando citas para doctor ID:', doctor.id);
-
-                    // 2. Cargar Citas Pendientes
                     const { data: pending } = await supabase
                         .from('appointments')
                         .select(`
@@ -65,12 +61,11 @@ export default function DoctorDashboard() {
                         `)
                         .eq('doctor_id', doctor.id)
                         .eq('status', 'pending')
-                        .order('appointment_date', { ascending: false }) // Solicitudes recientes arriba
+                        .order('appointment_date', { ascending: false })
                         .order('appointment_time', { ascending: false });
 
                     if (pending) setPendingAppointments(pending as any[]);
 
-                    // 3. Cargar citas confirmadas Y completadas FUTURAS (Desde hoy)
                     const today = new Date().toISOString().split('T')[0];
                     const { data: upcoming } = await supabase
                         .from('appointments')
@@ -85,7 +80,7 @@ export default function DoctorDashboard() {
                         `)
                         .eq('doctor_id', doctor.id)
                         .in('status', ['confirmed', 'completed'])
-                        .gte('appointment_date', today) // Mayor o igual a hoy
+                        .gte('appointment_date', today)
                         .order('appointment_date', { ascending: true })
                         .order('appointment_time', { ascending: true });
 
@@ -118,7 +113,6 @@ export default function DoctorDashboard() {
         setIsSearching(true);
         try {
             if (searchType === 'cedula') {
-                // Comportamiento anterior: Redirigir directo si es cédula exacta
                 if (/^[VvEepP]-\d+$/.test(term) || /^\d+$/.test(term)) {
                     router.push(`/doctor/patients/${encodeURIComponent(term)}`);
                     return;
@@ -132,7 +126,6 @@ export default function DoctorDashboard() {
             } else if (searchType === 'cedula') {
                 query = query.ilike('cedula', `%${term}%`);
             } else if (searchType === 'diagnosis') {
-                // Búsqueda por diagnóstico requiere unir con medical_records
                 const { data: records, error: recError } = await supabase
                     .from('medical_records')
                     .select('patient_id, diagnosis, patient:patient_id(id, full_name, cedula)')
@@ -161,7 +154,6 @@ export default function DoctorDashboard() {
         }
     };
 
-    // Funciones para aceptar/rechazar citas
     const handleAppointmentAction = async (id: string, action: 'confirmed' | 'rejected') => {
         try {
             const { error } = await supabase
@@ -171,13 +163,11 @@ export default function DoctorDashboard() {
 
             if (error) throw error;
 
-            // Mover de pendiente a confirmada (o eliminar de la vista si es rechazada)
             const appointment = pendingAppointments.find(a => a.id === id);
             setPendingAppointments(prev => prev.filter(app => app.id !== id));
 
             if (action === 'confirmed' && appointment) {
-                alert('¡Cita aceptada! Se ha añadido a su Agenda Programada.');
-                // Añadir a la lista de próximas citas y reordenar visualmente
+                toast.success('Cita aceptada correctamente.');
                 setUpcomingAppointments(prev => [...prev, appointment].sort((a, b) => {
                     const dateA = new Date(`${a.appointment_date}T${a.appointment_time}`);
                     const dateB = new Date(`${b.appointment_date}T${b.appointment_time}`);
@@ -187,306 +177,382 @@ export default function DoctorDashboard() {
 
         } catch (error: any) {
             console.error('Error actualizando cita:', error);
-            // Mostrar el error detallado para debug
-            const errorMsg = error?.message || error?.toString() || 'Error desconocido';
-            alert(`Error al procesar la solicitud:\n\n${errorMsg}\n\nRevisa la consola para más detalles.`);
+            toast.error('Error al procesar la solicitud.');
         }
     };
 
-    // Helper para agrupar fechas visualmente
     const formatDateGroup = (dateStr: string) => {
-        const date = new Date(dateStr + 'T00:00:00'); // Forzar zona horaria local (truco simple)
+        const date = new Date(dateStr + 'T00:00:00');
         const today = new Date();
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
         if (date.toDateString() === today.toDateString()) return 'Hoy';
         if (date.toDateString() === tomorrow.toDateString()) return 'Mañana';
-        return date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        return date.toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long' });
     };
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-[#020714] flex flex-col items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
-                <p className="mt-4 text-gray-600">Cargando...</p>
+                <p className="mt-6 text-white/40 font-black uppercase tracking-[0.3em] text-[10px]">Iniciando Servimed...</p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <header className="bg-white shadow-sm sticky top-0 z-20">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                        {doctorData?.avatar_url ? (
-                            <img
-                                src={doctorData.avatar_url}
-                                alt="Perfil"
-                                className="w-16 h-16 rounded-full object-cover shadow-lg border-2 border-white"
-                            />
-                        ) : (
-                            <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center shadow-lg">
-                                <span className="text-white font-bold text-2xl">👨‍⚕️</span>
-                            </div>
-                        )}
+        <div className="min-h-screen relative overflow-hidden bg-[#020714]">
+            {/* 🏥 Fondo Institucional - Alta Nitidez */}
+            <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+                <Image
+                    src="/images/dashboard-bg.jpeg"
+                    alt="Fondo institucional médico"
+                    fill
+                    priority
+                    quality={85}
+                    placeholder="blur"
+                    blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAUH/8QAIhAAAgIBAwQDAAAAAAAAAAAAAQIDBAAFESEGEjFBUWFx/8QAFQEBAQAAAAAAAAAAAAAAAAAABAX/xAAZEQACAwEAAAAAAAAAAAAAAAABAgADEUH/2gAMAwEAAhEDEEAPAMZvdU6jYnkki1KzCjuVVWlYAAnYDn4x7/pmiSASAeT5OGYZhVYk2IWcp//Z"
+                    className="object-cover scale-105"
+                    style={{ 
+                        opacity: 0.80,
+                        filter: 'contrast(1.1) brightness(0.85) saturate(1.05)'
+                    }}
+                />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,#020714_85%)] opacity-50" />
+                <div className="absolute inset-0 bg-gradient-to-b from-[#020714]/20 via-transparent to-[#020714]/80" />
+            </div>
+
+            {/* Luces Ambientales */}
+            <div className="fixed inset-0 pointer-events-none z-0">
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-accent/15 blur-[140px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/10 blur-[140px]" />
+            </div>
+
+            {/* Premium Header */}
+            <header className="sticky top-0 z-50 backdrop-blur-xl border-b border-white/5"
+                style={{ backgroundColor: 'rgba(2,7,20,0.40)' }}>
+                <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-6">
+                        <div className="relative group cursor-pointer" onClick={() => router.push('/doctor/profile')}>
+                            <div className="absolute -inset-1 bg-gradient-to-r from-accent to-blue-400 rounded-full blur opacity-40 group-hover:opacity-75 transition duration-500"></div>
+                            {doctorData?.avatar_url ? (
+                                <img
+                                    src={doctorData.avatar_url}
+                                    alt="Perfil"
+                                    className="relative w-14 h-14 rounded-full object-cover border-2 border-white/20 shadow-2xl"
+                                />
+                            ) : (
+                                <div className="relative w-14 h-14 bg-gradient-to-br from-accent to-green-600 rounded-full flex items-center justify-center shadow-2xl border-2 border-white/20">
+                                    <span className="text-white font-black text-xl">👨‍⚕️</span>
+                                </div>
+                            )}
+                        </div>
                         <div>
-                            <h1 className="text-xl font-bold text-gray-900">Portal del Médico</h1>
-                            <p className="text-sm text-gray-500 font-medium">
-                                {doctorData?.full_name || 'Bienvenido, Doctor'} <span className="text-gray-300">|</span> {doctorData?.specialty}
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-xl font-black text-white tracking-tight leading-none drop-shadow-md">
+                                    Panel Médico <span className="text-white/50 font-medium">|</span>
+                                </h1>
+                                <span className="text-accent font-black text-sm uppercase tracking-widest">{doctorData?.specialty}</span>
+                            </div>
+                            <p className="text-white/60 text-sm font-medium mt-1">
+                                {doctorData?.full_name || 'Bienvenido, Doctor'}
                             </p>
                         </div>
                     </div>
-                    <button onClick={handleLogout} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 border border-gray-300 rounded-lg hover:bg-red-50 hover:border-red-200 transition">
-                        Cerrar Sesión
-                    </button>
+                    
+                    <div className="flex items-center space-x-4">
+                        <button 
+                            onClick={() => router.push('/doctor/profile')}
+                            className="p-3 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all duration-300"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                        <button 
+                            onClick={handleLogout} 
+                            className="group flex items-center space-x-2 px-6 py-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all duration-500 shadow-lg shadow-red-500/10 active:scale-95"
+                        >
+                            <span>Salir</span>
+                            <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-
-                {/* 1. Alerta de Perfil Incompleto */}
+            <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+                {/* 1. Alerta de Perfil Incompleto (Premium) */}
                 {doctorData && (!doctorData.license_number || !doctorData.phone) && (
-                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 flex justify-between items-center shadow-sm animate-fade-in">
-                        <div className="flex">
-                            <div className="flex-shrink-0">⚠️</div>
-                            <div className="ml-3">
-                                <p className="text-sm text-yellow-700">
-                                    Complete su perfil (Licencia y Teléfono) para validar su cuenta.
+                    <div className="relative overflow-hidden rounded-3xl p-4 flex justify-between items-center border border-yellow-500/20 shadow-2xl animate-fade-in"
+                        style={{ backgroundColor: 'rgba(234,179,8,0.1)', backdropFilter: 'blur(12px)' }}>
+                        <div className="flex items-center">
+                            <div className="w-10 h-10 rounded-2xl bg-yellow-500/20 flex items-center justify-center text-xl mr-4 shadow-inner">⚠️</div>
+                            <div>
+                                <p className="text-yellow-200 font-bold text-sm">Perfil Incompleto</p>
+                                <p className="text-yellow-200/60 text-xs mt-0.5">
+                                    Valida tu cuenta agregando tu Licencia y Teléfono.
                                 </p>
                             </div>
                         </div>
-                        <button onClick={() => router.push('/doctor/profile')} className="text-yellow-700 hover:text-yellow-600 font-bold text-sm underline">
-                            Completar perfil
+                        <button 
+                            onClick={() => router.push('/doctor/profile')} 
+                            className="bg-yellow-500 text-black px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-transform"
+                        >
+                            Completar ahora
                         </button>
                     </div>
                 )}
 
-                {/* 2. Buscador de Pacientes */}
-                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col md:flex-row gap-6 items-center bg-gradient-to-r from-blue-50 to-white">
-                    <div className="flex-1 w-full">
-                        <h2 className="text-lg font-bold text-gray-900 mb-2 flex items-center">
-                            <span className="bg-blue-100 text-blue-600 p-2 rounded-lg mr-3">🔍</span>
-                            Buscar Historia Clínica
-                        </h2>
-                        <form onSubmit={handleSearch} className="space-y-3">
-                            <div className="flex flex-wrap gap-2 mb-2">
-                                {(['cedula', 'name', 'diagnosis'] as const).map((type) => (
-                                    <button
-                                        key={type}
-                                        type="button"
-                                        onClick={() => setSearchType(type)}
-                                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all border ${
-                                            searchType === type 
-                                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
-                                            : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'
-                                        }`}
-                                    >
-                                        {type === 'cedula' ? '🆔 Cédula' : type === 'name' ? '👤 Nombre' : '🩺 Diagnóstico'}
-                                    </button>
-                                ))}
+                {/* 2. Métricas de Impacto (Analytics) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {[
+                        { label: 'Pacientes Hoy', value: upcomingAppointments.filter(a => a.appointment_date === new Date().toISOString().split('T')[0] && a.status === 'confirmed').length, icon: '📅', color: 'accent' },
+                        { label: 'Nuevas Solicitudes', value: pendingAppointments.length, icon: '📩', color: 'blue-400' },
+                        { label: 'Total Semana', value: upcomingAppointments.length + pendingAppointments.length, icon: '📈', color: 'purple-400' }
+                    ].map((stat, i) => (
+                        <div key={i} className="group relative overflow-hidden rounded-3xl p-6 border-2 border-white/15 shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:border-accent/50 hover:shadow-[0_0_30px_rgba(6,214,160,0.15)]"
+                            style={{ backgroundColor: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(16px)' }}>
+                            <div className="absolute top-0 right-0 p-4 opacity-30 group-hover:opacity-60 transition-opacity text-5xl drop-shadow-lg">
+                                {stat.icon}
                             </div>
-                            <div className="flex gap-3">
-                                <div className="relative flex-1">
-                                    <input
-                                        type="text"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        placeholder={
-                                            searchType === 'cedula' ? "Cédula (ej: V-12345678)" :
-                                            searchType === 'name' ? "Nombre del paciente..." :
-                                            "Búsqueda por diagnóstico..."
-                                        }
-                                        className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-lg px-4 py-2 shadow-sm pr-10"
-                                    />
-                                    {isSearching && (
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                                        </div>
-                                    )}
-                                </div>
-                                <button 
-                                    type="submit" 
-                                    disabled={isSearching}
-                                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition shadow-md whitespace-nowrap disabled:opacity-50"
-                                >
-                                    {isSearching ? 'Buscando...' : 'Buscar'}
-                                </button>
+                            <p className="text-white/50 text-xs font-black uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                            <div className="flex items-end gap-3">
+                                <h3 className="text-4xl font-black text-white leading-none">{stat.value}</h3>
+                                <div className={`h-1.5 w-1.5 rounded-full mb-2 bg-${stat.color}`} />
                             </div>
+                            <div className="mt-4 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                                <div className={`h-full bg-${stat.color} opacity-50 w-2/3`} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
 
-                            {/* Resultados de búsqueda rápidos */}
-                            {searchResults.length > 0 && (
-                                <div className="mt-4 bg-white border border-blue-100 rounded-lg shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 border-l-4 border-l-blue-500">
-                                    <div className="bg-blue-50 px-4 py-2 text-xs font-bold text-blue-800 border-b border-blue-100 flex justify-between items-center">
-                                        <span>PACIENTES ENCONTRADOS ({searchResults.length})</span>
-                                        <button onClick={() => setSearchResults([])} className="text-blue-400 hover:text-blue-800">✕</button>
-                                    </div>
-                                    <div className="divide-y divide-gray-100">
-                                        {searchResults.map(p => (
-                                            <div 
-                                                key={p.id}
-                                                onClick={() => router.push(`/doctor/patients/${p.cedula}`)}
-                                                className="p-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between transition group"
+                {/* 3. Buscador Spotlight */}
+                <div className="relative group">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-accent/20 to-blue-500/20 rounded-[2.5rem] blur opacity-25 group-focus-within:opacity-100 transition duration-1000"></div>
+                    <div className="relative bg-white/5 backdrop-blur-2xl rounded-[2rem] p-8 border border-white/10 shadow-2xl">
+                        <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
+                            <div className="flex-1 w-full">
+                                <h2 className="text-lg font-black text-white mb-6 flex items-center uppercase tracking-widest gap-3">
+                                    <span className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-sm">🔍</span>
+                                    Buscador de Pacientes
+                                </h2>
+                                <form onSubmit={handleSearch} className="space-y-6">
+                                    <div className="flex flex-wrap gap-3">
+                                        {(['cedula', 'name', 'diagnosis'] as const).map((type) => (
+                                            <button
+                                                key={type}
+                                                type="button"
+                                                onClick={() => setSearchType(type)}
+                                                className={`px-6 py-2 rounded-xl text-[10px] font-black transition-all border uppercase tracking-widest ${
+                                                    searchType === type 
+                                                    ? 'bg-accent text-white border-accent shadow-[0_0_20px_rgba(6,214,160,0.4)]' 
+                                                    : 'bg-white/5 text-white/40 border-white/10 hover:border-white/30'
+                                                }`}
                                             >
-                                                <div className="flex items-center">
-                                                    <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold mr-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                                        {p.full_name?.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{p.full_name}</p>
-                                                        <p className="text-xs text-gray-500 font-mono">C.I. {p.cedula}</p>
-                                                    </div>
-                                                </div>
-                                                <span className="text-blue-500 text-xs font-bold group-hover:underline">Ver ficha →</span>
-                                            </div>
+                                                {type === 'cedula' ? 'Cédula' : type === 'name' ? 'Nombre' : 'Diagnóstico'}
+                                            </button>
                                         ))}
                                     </div>
-                                </div>
-                            )}
-                            {searchTerm.trim() !== '' && !isSearching && searchResults.length === 0 && (
-                                <p className="text-xs text-center text-gray-400 mt-2 italic">Presione buscar para obtener resultados.</p>
-                            )}
-                        </form>
-                    </div>
-                    <div className="hidden md:block w-px h-16 bg-gray-200"></div>
-                    <div className="w-full md:w-1/3">
-                        <div
-                            onClick={() => router.push('/doctor/profile')}
-                            className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer transition flex items-center justify-between group"
-                        >
-                            <div>
-                                <h3 className="font-bold text-gray-800 text-sm">Mi Perfil</h3>
-                                <p className="text-xs text-gray-500">Gestión de datos profesionales</p>
+                                    <div className="flex gap-4">
+                                        <div className="relative flex-1 group/input">
+                                            <input
+                                                type="text"
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                placeholder={
+                                                    searchType === 'cedula' ? "Ej: V-12345678" :
+                                                    searchType === 'name' ? "Nombre completo..." :
+                                                    "Síntomas o diagnóstico..."
+                                                }
+                                                className="w-full bg-white/5 rounded-2xl border border-white/10 focus:border-accent/50 focus:ring-4 focus:ring-accent/10 text-white text-lg px-6 py-4 shadow-inner transition-all placeholder:text-white/20"
+                                            />
+                                            {isSearching && (
+                                                <div className="absolute right-6 top-1/2 -translate-y-1/2">
+                                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-accent border-t-transparent"></div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button 
+                                            type="submit" 
+                                            disabled={isSearching}
+                                            className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-accent hover:text-white transition-all duration-500 shadow-xl disabled:opacity-50 active:scale-95"
+                                        >
+                                            {isSearching ? '...' : 'Buscar'}
+                                        </button>
+                                    </div>
+
+                                    {/* Resultados Flotantes */}
+                                    {searchResults.length > 0 && (
+                                        <div className="mt-4 bg-[#0a1020]/90 backdrop-blur-3xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
+                                            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center">
+                                                <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Resultados Encontrados ({searchResults.length})</span>
+                                                <button onClick={() => setSearchResults([])} className="text-white/20 hover:text-white transition-colors">✕</button>
+                                            </div>
+                                            <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                                                {searchResults.map(p => (
+                                                    <div 
+                                                        key={p.id}
+                                                        onClick={() => router.push(`/doctor/patients/${p.cedula}`)}
+                                                        className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between transition group"
+                                                    >
+                                                        <div className="flex items-center">
+                                                            <div className="w-12 h-12 bg-accent/20 text-accent rounded-2xl flex items-center justify-center font-black mr-4 group-hover:scale-110 transition-transform">
+                                                                {p.full_name?.charAt(0)}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-bold text-white group-hover:text-accent transition-colors">{p.full_name}</p>
+                                                                <p className="text-xs text-white/40 font-mono tracking-tighter">C.I. {p.cedula}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <span className="text-accent text-[10px] font-black uppercase tracking-widest border border-accent/30 px-3 py-1 rounded-lg">Ver Ficha</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </form>
                             </div>
-                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-blue-100 text-blue-600 transition">⚙️</div>
                         </div>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-                    {/* 3. Columna Izquierda: Solicitudes Pendientes */}
+                    {/* 4. Columna Izquierda: Solicitudes Pendientes (Premium) */}
                     <div>
-                        <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                            📬 Solicitudes Pendientes
+                        <h2 className="text-xl font-black text-white mb-6 flex items-center uppercase tracking-widest gap-3">
+                            <span className="w-10 h-10 rounded-2xl bg-blue-500/20 flex items-center justify-center text-lg">📬</span>
+                            Solicitudes Pendientes
                             {pendingAppointments.length > 0 && (
-                                <span className="ml-2 bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full font-bold animate-pulse">
-                                    {pendingAppointments.length} nuevas
+                                <span className="bg-accent/20 text-accent text-[10px] px-3 py-1 rounded-full font-black animate-pulse border border-accent/30">
+                                    {pendingAppointments.length} NUEVAS
                                 </span>
                             )}
                         </h2>
 
                         {pendingAppointments.length > 0 ? (
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 {pendingAppointments.map((app) => (
-                                    <div key={app.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div>
-                                                <h3 className="font-bold text-gray-900 text-lg">{app.patient?.full_name || 'Paciente Desconocido'}</h3>
-                                                <p className="text-sm text-gray-500 font-mono flex items-center mt-1">
-                                                    <span className="bg-gray-100 px-2 py-0.5 rounded text-xs mr-2">C.I.</span>
-                                                    {app.patient?.cedula || '--'}
-                                                </p>
+                                    <div key={app.id} className="group relative overflow-hidden rounded-[2rem] p-6 border border-white/10 shadow-2xl transition-all duration-500 hover:-translate-y-1 hover:bg-white/[0.05]"
+                                        style={{ backgroundColor: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(16px)' }}>
+                                        <div className="flex justify-between items-start mb-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg">
+                                                    {app.patient?.full_name?.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-black text-white text-lg tracking-tight leading-none">{app.patient?.full_name}</h3>
+                                                    <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                                                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
+                                                        C.I. {app.patient?.cedula || '--'}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide border border-yellow-200">Pendiente</span>
+                                            <div className="px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-[10px] font-black uppercase tracking-widest">
+                                                Pendiente
+                                            </div>
                                         </div>
 
-                                        <div className="mb-4 bg-blue-50/50 p-4 rounded-lg text-sm border border-blue-100">
-                                            <div className="flex gap-4 mb-2 text-blue-900">
-                                                <span className="font-bold flex items-center">
-                                                    📅 {new Date(app.appointment_date + 'T00:00:00').toLocaleDateString()}
-                                                </span>
-                                                <span className="font-bold flex items-center">
-                                                    ⏰ {app.appointment_time?.slice(0, 5)}
-                                                </span>
+                                        <div className="mb-6 bg-white/5 p-5 rounded-2xl border border-white/5">
+                                            <div className="flex flex-wrap gap-4 mb-4">
+                                                <div className="flex items-center gap-2 text-white/80 text-sm font-bold">
+                                                    <span className="opacity-50 text-base">📅</span>
+                                                    {new Date(app.appointment_date + 'T00:00:00').toLocaleDateString('es-VE', { day: '2-digit', month: 'long' })}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-white/80 text-sm font-bold">
+                                                    <span className="opacity-50 text-base">⏰</span>
+                                                    {app.appointment_time?.slice(0, 5)}
+                                                </div>
                                                 {app.consultation_type && (
-                                                    <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold border border-blue-200">
+                                                    <div className="px-3 py-1 rounded-lg bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-tighter">
                                                         🩺 {app.consultation_type}
-                                                    </span>
+                                                    </div>
                                                 )}
                                             </div>
-                                            <p className="text-gray-700 italic border-l-2 border-blue-300 pl-3">
+                                            <p className="text-white/60 text-sm italic leading-relaxed border-l-2 border-accent/40 pl-4">
                                                 "{app.reason}"
                                             </p>
                                         </div>
 
-                                        <div className="flex gap-3">
+                                        <div className="grid grid-cols-2 gap-4">
                                             <button
                                                 onClick={() => handleAppointmentAction(app.id, 'confirmed')}
-                                                className="flex-1 bg-green-600 text-white py-2.5 rounded-lg font-bold hover:bg-green-700 transition shadow-sm flex items-center justify-center"
+                                                className="bg-accent text-white py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-accent/80 transition-all shadow-lg shadow-accent/20 active:scale-95"
                                             >
-                                                ✅ Aceptar
+                                                Aceptar
                                             </button>
                                             <button
                                                 onClick={() => handleAppointmentAction(app.id, 'rejected')}
-                                                className="flex-1 bg-white text-red-600 border border-red-200 py-2.5 rounded-lg font-bold hover:bg-red-50 transition flex items-center justify-center"
+                                                className="bg-white/5 text-red-400 border border-red-400/20 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-red-400 hover:text-white transition-all active:scale-95"
                                             >
-                                                ❌ Rechazar
+                                                Rechazar
                                             </button>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div className="bg-white p-12 rounded-xl border border-dashed border-gray-200 text-center">
-                                <span className="text-5xl grayscale opacity-20 block mb-4">📭</span>
-                                <h3 className="font-bold text-gray-500 text-lg">Sin solicitudes</h3>
-                                <p className="text-gray-400 mt-1 text-sm">No tienes citas pendientes de revisión.</p>
+                            <div className="bg-white/5 rounded-[2rem] border border-dashed border-white/10 p-16 text-center backdrop-blur-md">
+                                <span className="text-6xl block mb-6 filter grayscale opacity-20">📬</span>
+                                <h3 className="font-black text-white/30 text-lg uppercase tracking-widest">Bandeja Vacía</h3>
+                                <p className="text-white/20 mt-2 text-sm">No tienes solicitudes pendientes por ahora.</p>
                             </div>
                         )}
                     </div>
 
-                    {/* 4. Columna Derecha: Agenda Programada (Futura) */}
+                    {/* 5. Columna Derecha: Agenda Programada (Premium) */}
                     <div>
-                        {/* Botones de Filtro Temporal */}
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-gray-900">📅 Agenda Programada</h2>
-                            <div className="flex gap-2 bg-gray-100 p-1 rounded-lg border border-gray-200">
-                                <button
-                                    onClick={() => setAgendaView('today')}
-                                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition ${agendaView === 'today' ? 'bg-white text-accent shadow-sm border border-gray-200' : 'text-gray-600 hover:text-gray-900'}`}
-                                >
-                                    Hoy
-                                </button>
-                                <button
-                                    onClick={() => setAgendaView('week')}
-                                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition ${agendaView === 'week' ? 'bg-white text-accent shadow-sm border border-gray-200' : 'text-gray-600 hover:text-gray-900'}`}
-                                >
-                                    Semana
-                                </button>
-                                <button
-                                    onClick={() => setAgendaView('month')}
-                                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition ${agendaView === 'month' ? 'bg-white text-accent shadow-sm border border-gray-200' : 'text-gray-600 hover:text-gray-900'}`}
-                                >
-                                    Mes
-                                </button>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                            <h2 className="text-xl font-black text-white flex items-center uppercase tracking-widest gap-3">
+                                <span className="w-10 h-10 rounded-2xl bg-accent/20 flex items-center justify-center text-lg">📅</span>
+                                Agenda Programada
+                            </h2>
+                            <div className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 backdrop-blur-md">
+                                {(['today', 'week', 'month'] as const).map((view) => (
+                                    <button
+                                        key={view}
+                                        onClick={() => setAgendaView(view)}
+                                        className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
+                                            agendaView === view 
+                                            ? 'bg-accent text-white shadow-lg' 
+                                            : 'text-white/40 hover:text-white'
+                                        }`}
+                                    >
+                                        {view === 'today' ? 'Hoy' : view === 'week' ? 'Semana' : 'Mes'}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
-                        {/* Toggle de Mostrar Completadas */}
-                        <div className="mb-4">
-                            <label className="flex items-center gap-2 cursor-pointer w-fit">
-                                <input
-                                    type="checkbox"
-                                    checked={showCompleted}
-                                    onChange={(e) => setShowCompleted(e.target.checked)}
-                                    className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
-                                />
-                                <span className="text-sm font-medium text-gray-700">Mostrar citas completadas</span>
+                        {/* Toggle de Mostrar Completadas (Estilizado) */}
+                        <div className="mb-6 flex justify-end">
+                            <label className="group flex items-center gap-3 cursor-pointer select-none">
+                                <div className="relative">
+                                    <input
+                                        type="checkbox"
+                                        checked={showCompleted}
+                                        onChange={(e) => setShowCompleted(e.target.checked)}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-10 h-5 bg-white/10 rounded-full peer peer-checked:bg-accent transition-all duration-300 border border-white/10 shadow-inner"></div>
+                                    <div className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full peer-checked:translate-x-5 transition-all duration-300 shadow-md"></div>
+                                </div>
+                                <span className="text-[10px] font-black text-white/40 group-hover:text-white transition-colors uppercase tracking-widest">Ver Completadas</span>
                             </label>
                         </div>
 
                         {(() => {
-                            // Filtrar citas según la vista seleccionada Y el toggle de completadas
                             let filtered = upcomingAppointments;
-
-                            // 🆕 Filtrar por estado (ocultar completadas si showCompleted es false)
                             if (!showCompleted) {
                                 filtered = filtered.filter(app => app.status !== 'completed');
                             }
 
-                            // Filtrar por fecha
                             const today = new Date();
                             today.setHours(0, 0, 0, 0);
 
@@ -509,9 +575,8 @@ export default function DoctorDashboard() {
                             });
 
                             return filteredAppointments.length > 0 ? (
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
+                                <div className="space-y-4">
                                     {filteredAppointments.map((app, index) => {
-                                        // Agrupación visual simple por fechas
                                         const dateGroup = formatDateGroup(app.appointment_date);
                                         const prevApp = filteredAppointments[index - 1];
                                         const showHeader = !prevApp || formatDateGroup(prevApp.appointment_date) !== dateGroup;
@@ -519,56 +584,42 @@ export default function DoctorDashboard() {
                                         return (
                                             <div key={app.id}>
                                                 {showHeader && (
-                                                    <div className="bg-gray-50 px-4 py-2 font-bold text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100 flex items-center">
-                                                        📅 {dateGroup}
+                                                    <div className="flex items-center gap-4 mb-4 mt-6 first:mt-0">
+                                                        <div className="h-px flex-1 bg-white/10" />
+                                                        <span className="text-[10px] font-black text-accent uppercase tracking-[0.3em]">{dateGroup}</span>
+                                                        <div className="h-px flex-1 bg-white/10" />
                                                     </div>
                                                 )}
                                                 <div
-                                                    className="p-4 flex items-center justify-between hover:bg-blue-50/30 transition group cursor-pointer border-l-4 border-transparent hover:border-accent"
                                                     onClick={() => router.push(`/doctor/patients/${app.patient?.cedula}`)}
+                                                    className="group relative overflow-hidden bg-white/[0.02] hover:bg-white/[0.06] backdrop-blur-xl rounded-[1.5rem] p-5 border border-white/5 transition-all duration-500 cursor-pointer flex items-center justify-between"
                                                 >
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="text-center min-w-[70px] bg-white rounded-lg p-2 border border-gray-200 shadow-sm">
-                                                            <p className="font-black text-xl text-gray-800">{app.appointment_time?.slice(0, 5)}</p>
-                                                            <p className="text-[10px] text-gray-400 font-bold uppercase">Hora</p>
+                                                    <div className="flex items-center gap-6">
+                                                        <div className="text-center min-w-[80px] bg-[#020714]/60 rounded-2xl p-3 border border-white/10 shadow-xl">
+                                                            <p className="font-black text-2xl text-white leading-none">{app.appointment_time?.slice(0, 5)}</p>
+                                                            <p className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-2">HORA</p>
                                                         </div>
                                                         <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <h4 className="font-bold text-gray-900 text-lg">{app.patient?.full_name}</h4>
-                                                                {/* Badge de estado */}
-                                                                {app.status === 'completed' && (
-                                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
-                                                                        ✓ Completada
-                                                                    </span>
-                                                                )}
-                                                                {app.status === 'confirmed' && (
-                                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
-                                                                        Confirmada
-                                                                    </span>
+                                                            <div className="flex items-center gap-3">
+                                                                <h4 className="font-black text-white text-lg tracking-tight">{app.patient?.full_name}</h4>
+                                                                {app.status === 'completed' ? (
+                                                                    <span className="px-2 py-0.5 rounded-lg bg-accent/20 text-accent text-[8px] font-black uppercase tracking-widest border border-accent/20">Finalizada</span>
+                                                                ) : (
+                                                                    <span className="px-2 py-0.5 rounded-lg bg-blue-500/20 text-blue-400 text-[8px] font-black uppercase tracking-widest border border-blue-500/20">Agendada</span>
                                                                 )}
                                                             </div>
-                                                            <div className="flex items-center text-xs text-gray-500 font-mono mt-1">
-                                                                <span className="bg-blue-50 text-blue-600 px-1.5 rounded mr-2">CI</span>
-                                                                {app.patient?.cedula}
+                                                            <div className="flex items-center gap-4 mt-2">
+                                                                <p className="text-white/40 text-[10px] font-mono tracking-tighter">C.I. {app.patient?.cedula}</p>
                                                                 {app.consultation_type && (
-                                                                    <span className="ml-3 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-blue-100">
-                                                                        🩺 {app.consultation_type}
-                                                                    </span>
+                                                                    <span className="text-accent/60 text-[9px] font-black uppercase tracking-widest">🩺 {app.consultation_type}</span>
                                                                 )}
                                                             </div>
-                                                            <p className="text-sm text-gray-600 mt-2 truncate max-w-[220px] flex items-center">
-                                                                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full mr-2"></span>
-                                                                {app.reason}
-                                                            </p>
                                                         </div>
                                                     </div>
-                                                    <div className="text-right pl-4">
-                                                        <button
-                                                            onClick={() => router.push(`/doctor/patients/${app.patient?.cedula}`)}
-                                                            className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:border-accent hover:text-accent font-bold transition flex items-center shadow-sm"
-                                                        >
-                                                            Ver Ficha
-                                                        </button>
+                                                    <div className="flex flex-col items-end gap-2">
+                                                        <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-white/30 group-hover:bg-accent group-hover:text-white transition-all duration-500 shadow-inner">
+                                                            →
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -576,10 +627,10 @@ export default function DoctorDashboard() {
                                     })}
                                 </div>
                             ) : (
-                                <div className="bg-white p-12 rounded-xl border border-dashed border-gray-200 text-center opacity-70">
-                                    <span className="text-5xl mb-4 block opacity-50">📆</span>
-                                    <h3 className="font-bold text-gray-600 text-lg">Agenda Libre</h3>
-                                    <p className="text-sm text-gray-400 mt-1">No hay citas confirmadas para este período.</p>
+                                <div className="bg-white/5 rounded-[2rem] border border-dashed border-white/10 p-16 text-center opacity-50 backdrop-blur-sm">
+                                    <span className="text-6xl block mb-6 opacity-20">📆</span>
+                                    <h3 className="font-black text-white/30 text-lg uppercase tracking-widest">Agenda Libre</h3>
+                                    <p className="text-white/20 mt-2 text-sm">No hay citas confirmadas para este período.</p>
                                 </div>
                             );
                         })()}

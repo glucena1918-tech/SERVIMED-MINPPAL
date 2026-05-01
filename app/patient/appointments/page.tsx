@@ -112,7 +112,7 @@ export default function PatientAppointmentsPage() {
             {/* ── HERO BANNER ── */}
             <div className="relative h-52 overflow-hidden">
                 <img
-                    src="https://images.pexels.com/photos/12193104/pexels-photo-12193104.jpeg"
+                    src="/images/bg-patient-appointments.jpeg"
                     alt="Mis Citas"
                     className="absolute inset-0 w-full h-full object-cover object-center"
                 />

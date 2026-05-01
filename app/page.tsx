@@ -6,11 +6,11 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
 const BG_IMAGES = [
-    'https://images.pexels.com/photos/8376277/pexels-photo-8376277.jpeg',
-    'https://images.pexels.com/photos/4173251/pexels-photo-4173251.jpeg',
-    'https://images.pexels.com/photos/4989176/pexels-photo-4989176.jpeg',
-    'https://images.pexels.com/photos/7578803/pexels-photo-7578803.jpeg',
-    'https://images.pexels.com/photos/4309557/pexels-photo-4309557.jpeg',
+    '/images/hero-slide-1.jpeg',
+    '/images/hero-slide-2.jpeg',
+    '/images/hero-slide-3.jpeg',
+    '/images/hero-slide-4.jpeg',
+    '/images/hero-slide-5.jpeg',
 ];
 
 export default function HomePage() {

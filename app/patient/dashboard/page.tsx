@@ -81,7 +81,7 @@ export default function PatientDashboard() {
             <div className="relative h-72 overflow-hidden">
                 {/* Imagen de fondo */}
                 <Image
-                    src="https://images.pexels.com/photos/7088483/pexels-photo-7088483.jpeg"
+                    src="/images/bg-patient-dashboard.jpeg"
                     alt="Portal médico"
                     fill
                     style={{ objectFit: 'cover', objectPosition: 'center 30%' }}

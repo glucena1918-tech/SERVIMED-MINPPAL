@@ -41,21 +41,27 @@ export default function LoginPage() {
                 const userRole = data.user.app_metadata?.role || data.user.user_metadata?.role;
                 console.log('👤 Rol detectado:', userRole);
 
-                // Redirigir según el rol
-                let redirectPath = '/patient/dashboard'; // Default
+                // Redirigir según el rol o parámetro 'next'
+                const searchParams = new URLSearchParams(window.location.search);
+                const nextPath = searchParams.get('next');
+                
+                let redirectPath = nextPath || '/patient/dashboard';
 
-                switch (userRole) {
-                    case 'admin':
-                        redirectPath = '/admin/dashboard';
-                        break;
-                    case 'doctor':
-                        redirectPath = '/doctor/dashboard';
-                        break;
-                    case 'patient':
-                    default:
-                        redirectPath = '/patient/dashboard';
-                        break;
+                if (!nextPath) {
+                    switch (userRole) {
+                        case 'admin':
+                            redirectPath = '/admin/dashboard';
+                            break;
+                        case 'doctor':
+                            redirectPath = '/doctor/dashboard';
+                            break;
+                        case 'patient':
+                        default:
+                            redirectPath = '/patient/dashboard';
+                            break;
+                    }
                 }
+
 
                 console.log('🚀 Redirigiendo a:', redirectPath);
 
@@ -80,7 +86,7 @@ export default function LoginPage() {
         >
             {/* Background Image */}
             <img
-                src="https://images.pexels.com/photos/9062165/pexels-photo-9062165.jpeg"
+                src="/images/bg-login.jpeg"
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover"
                 style={{ opacity: 0.75 }}
@@ -97,7 +103,7 @@ export default function LoginPage() {
                     <div className="inline-flex items-center gap-3 mb-4">
                         <div className="w-14 h-14 overflow-hidden rounded-2xl border-2 border-accent/40 shadow-xl shadow-accent/20">
                             <img
-                                src="https://images.pexels.com/photos/37340896/pexels-photo-37340896.png"
+                                src="/images/logo-minppal.png"
                                 alt="Logo"
                                 className="w-full h-full object-cover"
                             />

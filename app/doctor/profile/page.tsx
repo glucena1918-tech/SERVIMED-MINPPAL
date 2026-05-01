@@ -57,6 +57,9 @@ export default function DoctorProfilePage() {
         avatar_url: ''
     });
 
+    const isBase64 = (str: string | null) => str?.startsWith('data:image/');
+    const [hasBase64, setHasBase64] = useState(false);
+
     useEffect(() => {
         const fetchProfile = async () => {
             try {
@@ -85,6 +88,7 @@ export default function DoctorProfilePage() {
                         bio: doc.bio || '',
                         avatar_url: doc.avatar_url || ''
                     });
+                    if (isBase64(doc.avatar_url)) setHasBase64(true);
                 } else {
                     setFormData(prev => ({
                         ...prev,
@@ -192,6 +196,7 @@ export default function DoctorProfilePage() {
                 .getPublicUrl(filePath);
 
             setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
+            setHasBase64(false);
             setImageSrc(null); // Cerrar modal
             setMessage({ type: 'success', text: 'Imagen actualizada. No olvide guardar los cambios.' });
 
@@ -288,6 +293,16 @@ export default function DoctorProfilePage() {
                     <div className={`mb-6 p-4 rounded-lg flex items-center ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
                         <span className="text-2xl mr-3">{message.type === 'success' ? '✅' : '⚠️'}</span>
                         <p className="font-medium">{message.text}</p>
+                    </div>
+                )}
+
+                {hasBase64 && (
+                    <div className="mb-6 p-4 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 flex items-start">
+                        <span className="text-xl mr-3">🚀</span>
+                        <div>
+                            <p className="font-bold text-sm">Optimización de Imagen Pendiente</p>
+                            <p className="text-xs mt-1">Su foto actual usa un formato antiguo que ralentiza la página. Por favor, <strong>vuelva a subir su foto</strong> para guardarla en nuestro nuevo sistema de almacenamiento de alta velocidad.</p>
+                        </div>
                     </div>
                 )}
 

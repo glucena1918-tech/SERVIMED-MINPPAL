@@ -17,7 +17,7 @@ export default function HelpPage() {
             {/* Background Image with Parallax & Overlay */}
             <div className="fixed inset-0 z-0">
                 <img 
-                    src="https://images.pexels.com/photos/7108344/pexels-photo-7108344.jpeg" 
+                    src="/images/bg-help.jpeg" 
                     alt="Background" 
                     className="w-full h-full object-cover scale-110"
                     style={{ 
@@ -44,7 +44,7 @@ export default function HelpPage() {
                     <Link href="/" className="flex items-center space-x-4 group">
                         <div className="relative w-12 h-12 overflow-hidden rounded-xl border-2 border-[#0F75C1]/40 group-hover:border-[#0F75C1] transition-all duration-500 shadow-xl shadow-[#0F75C1]/20 bg-white/10 backdrop-blur-md">
                             <img
-                                src="https://images.pexels.com/photos/37340896/pexels-photo-37340896.png"
+                                src="/images/logo-minppal.png"
                                 alt="Logo SSI MINPPAL"
                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                             />
@@ -180,7 +180,7 @@ export default function HelpPage() {
                     <div className="flex flex-col items-center gap-6">
                         <div className="flex items-center gap-3">
                             <img
-                                src="https://images.pexels.com/photos/37340896/pexels-photo-37340896.png"
+                                src="/images/logo-minppal.png"
                                 className="w-10 h-10 object-cover rounded-xl border border-white/10"
                                 alt="Logo SSI MINPPAL"
                             />

@@ -42,7 +42,10 @@ export async function updateSession(request: NextRequest) {
     // Si no hay usuario y la ruta no es pública, redirigir a login
     if (!user && !isPublicRoute) {
         console.log('🚫 No autenticado, redirigiendo a /login');
-        return NextResponse.redirect(new URL('/login', request.url));
+        const redirectUrl = new URL('/login', request.url);
+        // Guardar la ruta original (incluyendo parámetros de búsqueda) para volver después del login
+        redirectUrl.searchParams.set('next', request.nextUrl.pathname + request.nextUrl.search);
+        return NextResponse.redirect(redirectUrl);
     }
 
     // Si hay usuario, verificar que esté en la ruta correcta según su rol

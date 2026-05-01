@@ -7,7 +7,7 @@ export default function Footer() {
                 <div className="flex flex-col items-center gap-6">
                     <div className="flex items-center gap-3">
                         <img
-                            src="https://images.pexels.com/photos/37340896/pexels-photo-37340896.png"
+                            src="/images/logo-minppal.png"
                             className="w-10 h-10 object-cover rounded-xl border border-white/10"
                             alt="Logo MINPPAL"
                         />

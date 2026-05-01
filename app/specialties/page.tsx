@@ -101,7 +101,7 @@ export default function SpecialtiesPage() {
             {/* ── BACKGROUND IMAGE WITH OVERLAY ── */}
             <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
                 <img 
-                    src="https://images.pexels.com/photos/6129681/pexels-photo-6129681.jpeg?auto=compress&cs=tinysrgb&w=1920"
+                    src="/images/bg-specialties.jpeg"
                     alt=""
                     className="w-full h-full object-cover opacity-84 scale-100 transition-opacity duration-1000"
                     style={{ filter: 'brightness(65%) contrast(110%)' }}

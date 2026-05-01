@@ -221,7 +221,7 @@ function RequestAppointmentForm() {
             {/* ── HERO BANNER ── */}
             <div className="relative h-52 overflow-hidden">
                 <img
-                    src="https://images.pexels.com/photos/12512669/pexels-photo-12512669.jpeg"
+                    src="/images/bg-appointment-request.jpeg"
                     alt="Solicitar Cita"
                     className="absolute inset-0 w-full h-full object-cover object-center"
                 />

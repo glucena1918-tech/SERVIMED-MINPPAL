@@ -33,7 +33,7 @@ export default async function getCroppedImg(
     pixelCrop: { x: number; y: number; width: number; height: number },
     rotation = 0,
     flip = { horizontal: false, vertical: false }
-): Promise<string | null> {
+): Promise<Blob | null> {
     const image = await createImage(imageSrc)
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')

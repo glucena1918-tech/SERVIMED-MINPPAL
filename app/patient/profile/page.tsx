@@ -218,7 +218,7 @@ export default function PatientProfilePage() {
             {/* ── HERO BANNER ── */}
             <div className="relative h-52 overflow-hidden">
                 <img
-                    src="https://images.pexels.com/photos/12599544/pexels-photo-12599544.jpeg"
+                    src="/images/bg-patient-profile.jpeg"
                     alt="Ficha Médica"
                     className="absolute inset-0 w-full h-full object-cover object-center"
                 />
