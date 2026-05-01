@@ -60,6 +60,26 @@ export default function DoctorProfilePage() {
     const isBase64 = (str: string | null) => str?.startsWith('data:image/');
     const [hasBase64, setHasBase64] = useState(false);
 
+    // --- NUEVOS ESTADOS PARA DISPONIBILIDAD ---
+    const [workingDays, setWorkingDays] = useState<Record<number, { morning: boolean, afternoon: boolean }>>({
+        1: { morning: false, afternoon: false },
+        2: { morning: false, afternoon: false },
+        3: { morning: false, afternoon: false },
+        4: { morning: false, afternoon: false },
+        5: { morning: false, afternoon: false },
+        6: { morning: false, afternoon: false },
+        0: { morning: false, afternoon: false }
+    });
+    const [scheduleConfig, setScheduleConfig] = useState({
+        morningStart: '07:00',
+        morningEnd: '12:00',
+        afternoonStart: '13:30',
+        afternoonEnd: '17:30',
+        slotDuration: 30,
+        bufferTime: 15
+    });
+    // ------------------------------------------
+
     useEffect(() => {
         const fetchProfile = async () => {
             try {
@@ -89,6 +109,39 @@ export default function DoctorProfilePage() {
                         avatar_url: doc.avatar_url || ''
                     });
                     if (isBase64(doc.avatar_url)) setHasBase64(true);
+
+                    // Cargar Disponibilidad
+                    const { data: availData } = await supabase
+                        .from('doctor_availability')
+                        .select('*')
+                        .eq('doctor_id', (data as any).id);
+
+                    if (availData && availData.length > 0) {
+                        const newWorkingDays: any = {};
+                        [0,1,2,3,4,5,6].forEach(d => newWorkingDays[d] = { morning: false, afternoon: false });
+                        
+                        availData.forEach((item: any) => {
+                            const day = item.day_of_week;
+                            // Determinar si es mañana o tarde basado en la hora de inicio
+                            const hour = parseInt(item.start_time.split(':')[0]);
+                            if (hour < 12) {
+                                newWorkingDays[day].morning = true;
+                                setScheduleConfig(prev => ({ 
+                                    ...prev, 
+                                    morningStart: item.start_time.substring(0, 5),
+                                    morningEnd: item.end_time.substring(0, 5)
+                                }));
+                            } else {
+                                newWorkingDays[day].afternoon = true;
+                                setScheduleConfig(prev => ({ 
+                                    ...prev, 
+                                    afternoonStart: item.start_time.substring(0, 5),
+                                    afternoonEnd: item.end_time.substring(0, 5)
+                                }));
+                            }
+                        });
+                        setWorkingDays(newWorkingDays);
+                    }
                 } else {
                     setFormData(prev => ({
                         ...prev,
@@ -128,13 +181,48 @@ export default function DoctorProfilePage() {
                 is_verified: false
             };
 
-            const { error } = await supabase
+            const { data: doctorData } = await supabase
                 .from('doctors')
-                .upsert(updates as any, { onConflict: 'user_id' });
+                .select('id')
+                .eq('user_id', user.id)
+                .single();
 
-            if (error) throw error;
+            if (doctorData) {
+                // Actualizar Disponibilidad
+                // 1. Borrar actual
+                await supabase.from('doctor_availability').delete().eq('doctor_id', doctorData.id);
+                
+                // 2. Insertar nuevos según selección
+                const availToInsert = [];
+                for (const dayStr in workingDays) {
+                    const day = parseInt(dayStr);
+                    const shifts = workingDays[day as keyof typeof workingDays];
+                    
+                    if (shifts.morning) {
+                        availToInsert.push({
+                            doctor_id: doctorData.id,
+                            day_of_week: day,
+                            start_time: scheduleConfig.morningStart,
+                            end_time: scheduleConfig.morningEnd,
+                            slot_duration: scheduleConfig.slotDuration
+                        });
+                    }
+                    if (shifts.afternoon) {
+                        availToInsert.push({
+                            doctor_id: doctorData.id,
+                            day_of_week: day,
+                            start_time: scheduleConfig.afternoonStart,
+                            end_time: scheduleConfig.afternoonEnd,
+                            slot_duration: scheduleConfig.slotDuration
+                        });
+                    }
+                }
+                if (availToInsert.length > 0) {
+                    await supabase.from('doctor_availability').insert(availToInsert);
+                }
+            }
 
-            setMessage({ type: 'success', text: '¡Perfil profesional actualizado correctamente!' });
+            setMessage({ type: 'success', text: '¡Perfil profesional y horario actualizados correctamente!' });
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
         } catch (error: any) {
@@ -447,6 +535,138 @@ export default function DoctorProfilePage() {
                                     placeholder="Breve descripción de su experiencia y enfoque..."
                                     className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4 border"
                                 />
+                            </div>
+                        </div>
+
+                        {/* --- SECCIÓN DE HORARIO DE ATENCIÓN --- */}
+                        <div className="pt-8 border-t border-gray-100">
+                            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                                <span className="mr-2">📅</span> Configuración de Horario
+                            </h3>
+                            <p className="text-sm text-gray-600 mb-6">
+                                Seleccione los días que atiende y defina sus bloques de horario. El sistema aplicará automáticamente un respiro de 15 min entre pacientes.
+                            </p>
+
+                            <div className="mb-8">
+                                <label className="block text-sm font-semibold text-gray-700 mb-4">Seleccione sus días y turnos de atención</label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                    {[
+                                        { id: 1, label: 'Lunes' },
+                                        { id: 2, label: 'Martes' },
+                                        { id: 3, label: 'Miércoles' },
+                                        { id: 4, label: 'Jueves' },
+                                        { id: 5, label: 'Viernes' },
+                                        { id: 6, label: 'Sábado' },
+                                        { id: 0, label: 'Domingo' }
+                                    ].map((day) => {
+                                        const isActive = workingDays[day.id as keyof typeof workingDays].morning || workingDays[day.id as keyof typeof workingDays].afternoon;
+                                        return (
+                                            <div 
+                                                key={day.id} 
+                                                className={`p-4 rounded-xl border transition-all ${isActive ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-gray-100 opacity-60'}`}
+                                            >
+                                                <p className={`font-bold mb-3 ${isActive ? 'text-blue-700' : 'text-gray-400'}`}>{day.label}</p>
+                                                <div className="space-y-2">
+                                                    <label className="flex items-center text-sm cursor-pointer group">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={workingDays[day.id as keyof typeof workingDays].morning}
+                                                            onChange={(e) => setWorkingDays(prev => ({
+                                                                ...prev,
+                                                                [day.id]: { ...prev[day.id as keyof typeof workingDays], morning: e.target.checked }
+                                                            }))}
+                                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                                                        />
+                                                        <span className={workingDays[day.id as keyof typeof workingDays].morning ? 'text-blue-900 font-medium' : 'text-gray-400'}>☀️ Mañana</span>
+                                                    </label>
+                                                    <label className="flex items-center text-sm cursor-pointer group">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={workingDays[day.id as keyof typeof workingDays].afternoon}
+                                                            onChange={(e) => setWorkingDays(prev => ({
+                                                                ...prev,
+                                                                [day.id]: { ...prev[day.id as keyof typeof workingDays], afternoon: e.target.checked }
+                                                            }))}
+                                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                                                        />
+                                                        <span className={workingDays[day.id as keyof typeof workingDays].afternoon ? 'text-blue-900 font-medium' : 'text-gray-400'}>🌇 Tarde</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
+                                {/* Bloque Mañana */}
+                                <div>
+                                    <div className="flex items-center mb-4">
+                                        <span className="text-lg mr-2">☀️</span>
+                                        <h4 className="font-bold text-gray-900">Turno Mañana</h4>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Inicio</label>
+                                            <input
+                                                type="time"
+                                                value={scheduleConfig.morningStart}
+                                                onChange={(e) => setScheduleConfig(prev => ({ ...prev, morningStart: e.target.value }))}
+                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 border"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fin</label>
+                                            <input
+                                                type="time"
+                                                value={scheduleConfig.morningEnd}
+                                                onChange={(e) => setScheduleConfig(prev => ({ ...prev, morningEnd: e.target.value }))}
+                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 border"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Bloque Tarde */}
+                                <div>
+                                    <div className="flex items-center mb-4">
+                                        <span className="text-lg mr-2">🌇</span>
+                                        <h4 className="font-bold text-gray-900">Turno Tarde</h4>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Inicio</label>
+                                            <input
+                                                type="time"
+                                                value={scheduleConfig.afternoonStart}
+                                                onChange={(e) => setScheduleConfig(prev => ({ ...prev, afternoonStart: e.target.value }))}
+                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 border"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fin</label>
+                                            <input
+                                                type="time"
+                                                value={scheduleConfig.afternoonEnd}
+                                                onChange={(e) => setScheduleConfig(prev => ({ ...prev, afternoonEnd: e.target.value }))}
+                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 border"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="md:col-span-2 p-4 bg-white/60 rounded-lg border border-white flex items-center justify-between">
+                                    <div className="flex items-center">
+                                        <span className="text-xl mr-3">🕒</span>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-800">Regla de Atención</p>
+                                            <p className="text-xs text-gray-500">Citas de 30 min + 15 min de respiro</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded">Almuerzo bloqueado: 12:00 - 13:30</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

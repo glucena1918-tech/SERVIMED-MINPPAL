@@ -12,6 +12,7 @@ interface Doctor {
     specialty: string;
     avatar_url: string | null;
     bio: string | null;
+    doctor_availability: { day_of_week: number }[];
 }
 
 const SPECIALTY_METADATA: Record<string, { icon: string; description: string; gradient: string }> = {
@@ -80,7 +81,14 @@ export default function SpecialtiesPage() {
         async function fetchDoctors() {
             const { data, error } = await supabase
                 .from('doctors')
-                .select('id, full_name, specialty, avatar_url, bio')
+                .select(`
+                    id, 
+                    full_name, 
+                    specialty, 
+                    avatar_url, 
+                    bio,
+                    doctor_availability(day_of_week)
+                `)
                 .eq('is_active', true);
             
             if (error) {
@@ -208,9 +216,25 @@ export default function SpecialtiesPage() {
                                                     <h3 className="text-2xl font-black mb-2 tracking-tight text-white group-hover:text-accent transition-colors duration-500">{doc.full_name}</h3>
                                                     <div className="w-12 h-1 bg-accent/20 rounded-full mb-6 group-hover:w-20 group-hover:bg-accent/40 transition-all duration-500" />
                                                     
-                                                    <p className="text-white/40 text-[13px] leading-relaxed mb-10 h-10 line-clamp-2 font-medium italic">
+                                                    <p className="text-white/40 text-[13px] leading-relaxed mb-6 h-10 line-clamp-2 font-medium italic">
                                                         "{doc.bio || 'Profesional de la salud dedicado a brindar una atención integral y humana a cada paciente.'}"
                                                     </p>
+
+                                                    {/* Días de Consulta */}
+                                                    <div className="w-full mb-8 pt-4 border-t border-white/5">
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-accent mb-3">Días de Consulta</p>
+                                                        <div className="flex flex-wrap justify-center gap-1.5">
+                                                            {(() => {
+                                                                const days = Array.from(new Set(doc.doctor_availability.map(a => a.day_of_week))).sort((a,b) => (a===0?7:a) - (b===0?7:b));
+                                                                const dayNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+                                                                return days.length > 0 ? days.map(d => (
+                                                                    <span key={d} className="px-2 py-1 rounded-md bg-white/5 text-[9px] font-bold text-white/60 border border-white/5">
+                                                                        {dayNames[d]}
+                                                                    </span>
+                                                                )) : <span className="text-[9px] text-white/20 italic">Horario por definir</span>;
+                                                            })()}
+                                                        </div>
+                                                    </div>
 
                                                     <Link 
                                                         href={`/patient/appointments/request?doctor_id=${doc.id}`}

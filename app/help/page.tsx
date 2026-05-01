@@ -134,7 +134,7 @@ export default function HelpPage() {
                         
                         <div className="space-y-5">
                             {[
-                                { title: "Acceso Profesional", desc: "Selecciona 'Soy Médico' e ingresa con tus credenciales. Recuerda que tu cuenta debe ser validada por el administrador del sistema." },
+                                { title: "Acceso Profesional", desc: "Selecciona 'Soy Médico' e ingresa con tus credenciales. Al registrarte, debes completar tu Perfil Profesional incluyendo tus Datos y Horario de Atención para ser visible." },
                                 { title: "Gestión de Agenda", desc: "En tu Dashboard verás las solicitudes entrantes. Debes 'Confirmar' las citas para asegurar el espacio y notificar al paciente." },
                                 { title: "Atención al Paciente", desc: "Durante la consulta, abre la cita confirmada para llenar la Historia Clínica electrónica (Diagnóstico, Tratamiento y Reposo)." },
                                 { title: "Finalizar Registro", desc: "Haz clic en 'Guardar Historia'. El sistema actualizará automáticamente el estado de la cita a 'Completada' de forma inmediata." },

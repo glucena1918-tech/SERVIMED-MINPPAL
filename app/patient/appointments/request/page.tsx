@@ -59,11 +59,8 @@ function RequestAppointmentForm() {
         "Consulta Nuevo Ingreso."
     ];
 
-    // Horarios disponibles (Simulados por ahora, idealmente vendrían del doctor)
-    const allTimes = [
-        '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-        '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'
-    ];
+    // Horarios disponibles (Dinámicos)
+    const [allTimes, setAllTimes] = useState<string[]>([]);
 
     // Horarios ocupados (dinámicos basados en BD)
     const [bookedTimes, setBookedTimes] = useState<string[]>([]);
@@ -113,39 +110,87 @@ function RequestAppointmentForm() {
         }
     }, [selectedSpecialty, doctors]);
 
-    // 🆕 CARGAR HORARIOS OCUPADOS cuando se seleccionen médico y fecha
+    // 🆕 CARGAR DISPONIBILIDAD Y HORARIOS OCUPADOS
     useEffect(() => {
-        const fetchBookedTimes = async () => {
-            // Solo buscar si hay médico Y fecha seleccionados
+        const fetchAvailabilityAndBooked = async () => {
             if (!selectedDoctorId || !date) {
+                setAllTimes([]);
                 setBookedTimes([]);
                 return;
             }
 
             setLoadingTimes(true);
             try {
-                const { data, error } = await supabase
+                // 1. Obtener día de la semana (0-6, donde 0 es Domingo)
+                const selectedDay = new Date(date + 'T00:00:00').getDay();
+
+                // 2. Cargar disponibilidad del doctor para ese día
+                const { data: availData, error: availError } = await supabase
+                    .from('doctor_availability')
+                    .select('*')
+                    .eq('doctor_id', selectedDoctorId)
+                    .eq('day_of_week', selectedDay)
+                    .eq('is_active', true);
+
+                if (availError) throw availError;
+
+                // 3. Cargar citas ya ocupadas
+                const { data: bookedData, error: bookedError } = await supabase
                     .from('appointments')
                     .select('appointment_time')
                     .eq('doctor_id', selectedDoctorId)
                     .eq('appointment_date', date)
-                    .in('status', ['pending', 'confirmed']); // Bloquear horas pendientes Y confirmadas
+                    .in('status', ['pending', 'confirmed']);
 
-                if (error) throw error;
+                if (bookedError) throw bookedError;
+                setBookedTimes(bookedData?.map(a => a.appointment_time.substring(0, 5)) || []);
 
-                // Extraer solo las horas
-                const times = data?.map(a => a.appointment_time) || [];
-                setBookedTimes(times);
+                // 4. Generar slots basados en la disponibilidad (Regla 30 + 15)
+                if (!availData || availData.length === 0) {
+                    setAllTimes([]);
+                } else {
+                    const generatedSlots: string[] = [];
+                    const buffer = 15; // minutos de respiro
+
+                    availData.forEach(shift => {
+                        let current = new Date(`2000-01-01T${shift.start_time}`);
+                        const end = new Date(`2000-01-01T${shift.end_time}`);
+                        const slotDuration = shift.slot_duration || 30;
+
+                        while (current < end) {
+                            const timeStr = current.toTimeString().substring(0, 5);
+                            
+                            // Bloqueo de almuerzo (12:00 - 13:30)
+                            const currentHour = current.getHours();
+                            const currentMin = current.getMinutes();
+                            const totalMins = currentHour * 60 + currentMin;
+                            const lunchStart = 12 * 60;
+                            const lunchEnd = 13 * 60 + 30;
+
+                            if (totalMins < lunchStart || totalMins >= lunchEnd) {
+                                generatedSlots.push(timeStr);
+                            }
+
+                            // Avanzar (Atención + Respiro)
+                            current = new Date(current.getTime() + (slotDuration + buffer) * 60000);
+                        }
+                    });
+
+                    // Ordenar horarios
+                    setAllTimes(generatedSlots.sort());
+                }
+
             } catch (error) {
-                console.error('Error cargando horarios ocupados:', error);
+                console.error('Error cargando disponibilidad:', error);
+                setAllTimes([]);
                 setBookedTimes([]);
             } finally {
                 setLoadingTimes(false);
             }
         };
 
-        fetchBookedTimes();
-    }, [selectedDoctorId, date]); // Se ejecuta cuando cambian médico o fecha
+        fetchAvailabilityAndBooked();
+    }, [selectedDoctorId, date]);
 
 
     const handleSubmit = async (e: React.FormEvent) => {
