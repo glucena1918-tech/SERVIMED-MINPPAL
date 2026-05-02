@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { generateInformeMedico, generateReceta, generateConstancia, generateOrdenExamen } from '@/lib/utils/pdfGenerator';
@@ -67,6 +67,8 @@ export default function PatientHistoryPage() {
     const router = useRouter();
     const params = useParams();
     const cedula = params.cedula as string;
+    const searchParams = useSearchParams();
+    const appointmentIdParam = searchParams.get('appointmentId');
 
     const [loading, setLoading] = useState(true);
     const [patient, setPatient] = useState<PatientData | null>(null);
@@ -179,20 +181,49 @@ export default function PatientHistoryPage() {
             if (recordsError) throw recordsError;
             setMedicalRecords(records || []);
 
-            // 3. Cargar cita activa para hoy (si existe)
-            const tzOffset = (new Date()).getTimezoneOffset() * 60000;
-            const today = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
-            const { data: appointments } = await supabase
-                .from('appointments')
-                .select('*')
-                .eq('patient_id', (patientData as any).id)
-                .eq('appointment_date', today)
-                .eq('status', 'confirmed')
-                .order('appointment_time', { ascending: true })
-                .limit(1);
+            // 3. Cargar cita activa
+            let appointment = null;
             
-            if (appointments && appointments.length > 0) {
-                const appointment = appointments[0];
+            // Prioridad 1: ID específico desde la URL
+            if (appointmentIdParam) {
+                const { data } = await supabase
+                    .from('appointments')
+                    .select('*')
+                    .eq('id', appointmentIdParam)
+                    .single();
+                if (data) appointment = data;
+            }
+
+            // Prioridad 2: Si no hay ID o no se encontró, buscar cita confirmada para HOY
+            if (!appointment) {
+                const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+                const today = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
+                const { data: todayApps } = await supabase
+                    .from('appointments')
+                    .select('*')
+                    .eq('patient_id', (patientData as any).id)
+                    .eq('appointment_date', today)
+                    .eq('status', 'confirmed')
+                    .order('appointment_time', { ascending: true })
+                    .limit(1);
+                
+                if (todayApps && todayApps.length > 0) appointment = todayApps[0];
+            }
+
+            // Prioridad 3: Cualquier cita confirmada o pendiente (la más reciente/cercana)
+            if (!appointment) {
+                const { data: recentApps } = await supabase
+                    .from('appointments')
+                    .select('*')
+                    .eq('patient_id', (patientData as any).id)
+                    .in('status', ['confirmed', 'pending'])
+                    .order('appointment_date', { ascending: true })
+                    .limit(1);
+                
+                if (recentApps && recentApps.length > 0) appointment = recentApps[0];
+            }
+            
+            if (appointment) {
                 setActiveAppointment(appointment);
                 setFormData(prev => ({
                     ...prev,

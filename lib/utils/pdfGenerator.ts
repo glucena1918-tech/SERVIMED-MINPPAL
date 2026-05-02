@@ -160,16 +160,23 @@ const addPatientBox = (doc: jsPDF, patient: PatientData, startY: number): number
     let y = startY + 6;
     doc.setFontSize(9);
 
+    // Etiqueta Paciente
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
     doc.text('PACIENTE:', 20, y);
+    
+    // Nombre del Paciente con límite de ancho para evitar choque con C.I.
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0);
-    doc.text(patient.full_name, 40, y);
+    const nameWidth = 85; // Espacio máximo para el nombre antes de llegar a C.I.
+    doc.text(patient.full_name, 40, y, { maxWidth: nameWidth });
 
+    // Etiqueta C.I.
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
     doc.text('C.I.:', 130, y);
+    
+    // Valor C.I.
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0);
     doc.text(patient.cedula, 138, y);

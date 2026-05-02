@@ -8,8 +8,8 @@ import { toast, Toaster } from 'react-hot-toast';
 
 export default function SecretaryLoginPage() {
     const router = useRouter();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [cedula, setCedula] = useState('');
+    const [pin, setPin] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -17,60 +17,46 @@ export default function SecretaryLoginPage() {
         setLoading(true);
 
         try {
-            const cleanEmail = email.trim().toLowerCase();
+            const cleanCedula = cedula.trim();
+            const syntheticEmail = `${cleanCedula}@servimed.com`;
 
-            // 1. Intentar el login normal
+            // 1. Intentar el login con el correo sintético y el PIN
             const { data, error: signInError } = await supabase.auth.signInWithPassword({
-                email: cleanEmail,
-                password,
+                email: syntheticEmail,
+                password: pin,
             });
 
             if (signInError) throw signInError;
 
             if (data.user) {
-                const isAdmin = cleanEmail === 'goldengrovessoul@gmail.com';
-                
-                // Si es admin, dejamos pasar directo
-                if (isAdmin) {
-                    toast.success('Acceso de Administrador Autorizado');
-                    setTimeout(() => {
-                        window.location.replace('/secretary/dashboard');
-                    }, 1000);
-                    return;
-                }
-
-                // 2. VALIDACIÓN CRUCIAL: ¿Está en la tabla de secretarías?
+                // 2. VALIDACIÓN: ¿Está en la tabla de secretarías y activa?
                 const { data: secData, error: secError } = await (supabase as any)
                     .from('secretaries')
                     .select('*')
-                    .ilike('email', cleanEmail)
+                    .eq('cedula', cleanCedula)
                     .single();
 
                 if (secError || !secData) {
-                    console.error('❌ Error de validación:', secError);
                     await supabase.auth.signOut();
-                    toast.error('ACCESO DENEGADO: Usted no posee credenciales administrativas habilitadas.');
+                    toast.error('ACCESO DENEGADO: No posee credenciales administrativas habilitadas.');
                     setLoading(false);
                     return;
                 }
 
                 if (secData.status !== 'active') {
                     await supabase.auth.signOut();
-                    toast.error('ACCESO DENEGADO: Su cuenta de secretaria se encuentra inactiva.');
+                    toast.error('ACCESO DENEGADO: Su cuenta se encuentra inactiva.');
                     setLoading(false);
                     return;
                 }
 
-                // 3. Si todo está bien, mandamos al dashboard de secretaria
-                toast.success('Bienvenida al Sistema de Gestión Administrativa');
-                
-                // Usar replace para evitar que regrese al login
+                toast.success('Acceso Autorizado - Gestión Administrativa');
                 setTimeout(() => {
                     window.location.replace('/secretary/dashboard');
                 }, 1000);
             }
         } catch (err: any) {
-            toast.error(err.message || 'Error al iniciar sesión');
+            toast.error('Error de Autenticación: Verifique Cédula y PIN');
             setLoading(false);
         }
     };
@@ -79,14 +65,13 @@ export default function SecretaryLoginPage() {
         <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-[#050101]">
             <Toaster position="top-center" />
             
-            {/* Background Estético Oscuro/Rojizo */}
+            {/* Background Estético */}
             <div className="absolute inset-0 opacity-20">
                 <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-red-900/40 blur-[120px] rounded-full" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-red-950/20 blur-[120px] rounded-full" />
             </div>
 
             <div className="relative z-10 w-full max-w-md">
-                {/* Header del Portal */}
                 <div className="text-center mb-8">
                     <div className="inline-flex items-center gap-3 mb-6">
                         <div className="w-16 h-16 overflow-hidden rounded-2xl border-2 border-red-500/30 shadow-2xl shadow-red-500/20">
@@ -96,32 +81,32 @@ export default function SecretaryLoginPage() {
                     <h1 className="text-3xl font-black text-white tracking-tighter">
                         PORTAL <span className="text-red-500">ADMINISTRATIVO</span>
                     </h1>
-                    <p className="text-white/40 mt-2 text-xs font-bold uppercase tracking-[0.3em]">Acceso exclusivo de Secretaría</p>
+                    <p className="text-white/40 mt-2 text-xs font-bold uppercase tracking-[0.3em]">Acceso de Secretaría</p>
                 </div>
 
-                {/* Formulario Glassmorphic */}
                 <div className="bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl">
                     <form onSubmit={handleLogin} className="space-y-6">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4">Email Corporativo</label>
+                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4">Cédula Administrativa</label>
                             <input
-                                type="email"
+                                type="text"
                                 required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="secretaria@minppal.gob.ve"
+                                value={cedula}
+                                onChange={(e) => setCedula(e.target.value.replace(/\D/g, ''))}
+                                placeholder="Ingrese su Cédula"
                                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder:text-white/10 focus:border-red-500 outline-none transition-all"
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4">Contraseña de Seguridad</label>
+                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4">PIN de Seguridad (6 dígitos)</label>
                             <input
                                 type="password"
                                 required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
+                                maxLength={6}
+                                value={pin}
+                                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                                placeholder="••••••"
                                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder:text-white/10 focus:border-red-500 outline-none transition-all"
                             />
                         </div>

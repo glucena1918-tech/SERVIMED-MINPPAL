@@ -26,15 +26,16 @@ export default function PatientDashboard() {
                     .single();
 
                 if (pError) throw pError;
+                if (!patient) return; 
                 setPatientData(patient);
 
                 // Cargar próxima cita (pendiente o confirmada)
                 const tzOffset = (new Date()).getTimezoneOffset() * 60000;
                 const today = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
-                const { data: appointment, error: aError } = await supabase
+                const { data: appointment, error: aError } = await (supabase as any)
                     .from('appointments')
                     .select('*, doctors(full_name, specialty)')
-                    .eq('patient_id', patient.id)
+                    .eq('patient_id', (patient as any).id)
                     .in('status', ['pending', 'confirmed'])
                     .gte('appointment_date', today)
                     .order('appointment_date', { ascending: true })
@@ -207,24 +208,40 @@ export default function PatientDashboard() {
                     </div>
                 </div>
 
-                {/* Alerta ficha incompleta */}
-                {!patientData?.cedula && (
-                    <div className="mb-8 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-lg"
-                        style={{ background: 'linear-gradient(135deg, #fef3c7, #fde68a)', border: '1px solid #fcd34d' }}>
-                        <div className="flex items-center gap-3">
-                            <span className="text-2xl">⚠️</span>
-                            <div>
-                                <h4 className="font-bold text-amber-900 text-sm">Complete su Ficha Médica</h4>
-                                <p className="text-amber-800 text-xs">Es necesario completar sus datos para agendar citas.</p>
+                {/* Alerta ficha incompleta - Validación inteligente */}
+                {(!patientData?.date_of_birth || !patientData?.blood_type || !patientData?.agency || 
+                  !patientData?.emergency_contact_name || (!patientData?.allergies_food && !patientData?.allergies_medicine)) && (
+                    <div className="mb-10 relative overflow-hidden rounded-2xl shadow-xl border border-amber-200 animate-pulse-subtle"
+                        style={{ background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)' }}>
+                        
+                        {/* Franja lateral de acento */}
+                        <div className="absolute left-0 top-0 bottom-0 w-2"
+                            style={{ background: 'linear-gradient(to bottom, #f59e0b, #d97706)' }} />
+
+                        <div className="p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+                            <div className="flex items-center gap-5 text-center md:text-left">
+                                <div className="w-16 h-16 rounded-2xl bg-amber-500/20 flex items-center justify-center text-3xl shadow-inner border border-amber-500/30">
+                                    ⚠️
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-amber-900 uppercase tracking-tight mb-1">
+                                        ¡Atención! Ficha Médica Incompleta
+                                    </h3>
+                                    <p className="text-amber-800 text-sm font-semibold leading-relaxed max-w-xl">
+                                        Detectamos que faltan datos vitales (Alergias, Tipo de Sangre o Contactos). 
+                                        Llenar tu ficha permite que nuestros médicos te brinden una atención <span className="underline decoration-amber-600 decoration-2">más segura y efectiva</span>.
+                                    </p>
+                                </div>
                             </div>
+                            
+                            <button
+                                onClick={() => router.push('/patient/profile')}
+                                className="shrink-0 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-amber-600/20"
+                                style={{ background: '#d97706', color: '#fff' }}
+                            >
+                                Completar Ficha Ahora →
+                            </button>
                         </div>
-                        <button
-                            onClick={() => router.push('/patient/profile')}
-                            className="shrink-0 text-xs font-bold px-4 py-2 rounded-xl transition-all"
-                            style={{ background: '#d97706', color: '#fff' }}
-                        >
-                            Completar →
-                        </button>
                     </div>
                 )}
 

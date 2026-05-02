@@ -8,8 +8,8 @@ import { toast, Toaster } from 'react-hot-toast';
 
 export default function UnifiedAdminLoginPage() {
     const router = useRouter();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [cedula, setCedula] = useState('');
+    const [pin, setPin] = useState('');
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -17,7 +17,13 @@ export default function UnifiedAdminLoginPage() {
         const checkExistingSession = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                await handleStrictRoleValidation(user.email!);
+                const userRole = user.app_metadata?.role || user.user_metadata?.role;
+                if (userRole === 'admin') router.replace('/admin/dashboard');
+                else if (userRole === 'secretary') router.replace('/secretary/dashboard');
+                else {
+                    await supabase.auth.signOut();
+                    setLoading(false);
+                }
             } else {
                 setLoading(false);
             }
@@ -25,67 +31,36 @@ export default function UnifiedAdminLoginPage() {
         checkExistingSession();
     }, []);
 
-    const handleStrictRoleValidation = async (userEmail: string) => {
-        const cleanEmail = userEmail.trim().toLowerCase();
-        
-        // 1. Validar Administrador Maestro
-        if (cleanEmail === 'goldengrovessoul@gmail.com') {
-            router.replace('/admin/dashboard');
-            return;
-        }
-
-        // 2. Validar Secretaria
-        const { data: secData, error: secError } = await (supabase as any)
-            .from('secretaries')
-            .select('*')
-            .ilike('email', cleanEmail)
-            .single();
-
-        if (!secError && secData && secData.status === 'active') {
-            router.replace('/secretary/dashboard');
-            return;
-        }
-
-        // 3. RECHAZO AGRESIVO Y EXPULSIÓN
-        await supabase.auth.signOut();
-        toast.error('¡USTED NO ESTÁ AUTORIZADO PARA INGRESAR A ESTA ÁREA RESTRINGIDA!', {
-            duration: 4000,
-            style: { 
-                background: '#7f1d1d', 
-                color: '#fff', 
-                fontWeight: '900', 
-                fontSize: '14px',
-                border: '2px solid #ef4444',
-                padding: '20px',
-                textAlign: 'center'
-            },
-            icon: '🚫'
-        });
-
-        // Esperar y Sacar
-        setTimeout(() => {
-            router.replace('/');
-        }, 3000);
-
-        setLoading(false);
-        setIsSubmitting(false);
-    };
-
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            const cleanEmail = email.trim().toLowerCase();
+            // GENERACIÓN DE IDENTIDAD SINTÉTICA ADMIN
+            const syntheticEmail = `${cedula.trim()}@servimed.com`;
+
             const { data, error: signInError } = await supabase.auth.signInWithPassword({
-                email: cleanEmail,
-                password,
+                email: syntheticEmail,
+                password: pin,
             });
+
             if (signInError) throw signInError;
+
             if (data.user) {
-                await handleStrictRoleValidation(data.user.email!);
+                const userRole = data.user.app_metadata?.role || data.user.user_metadata?.role;
+                
+                if (userRole === 'admin') {
+                    router.replace('/admin/dashboard');
+                } else if (userRole === 'secretary') {
+                    router.replace('/secretary/dashboard');
+                } else {
+                    // Si no es admin ni secretaria, lo expulsamos de este portal
+                    await supabase.auth.signOut();
+                    toast.error('¡ACCESO DENEGADO: NO TIENE ROL ADMINISTRATIVO!');
+                    setIsSubmitting(false);
+                }
             }
         } catch (err: any) {
-            toast.error('CREDENCIALES INVÁLIDAS');
+            toast.error('CÉDULA O PIN INVÁLIDOS');
             setIsSubmitting(false);
         }
     };
@@ -120,27 +95,28 @@ export default function UnifiedAdminLoginPage() {
                 <div className="bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl">
                     <form onSubmit={handleLogin} className="space-y-6">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4 block text-left">Identificación</label>
+                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4 block text-left">Cédula Administrativa</label>
                             <input
-                                type="email"
+                                type="text"
                                 required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="Correo Institucional"
+                                value={cedula}
+                                onChange={(e) => setCedula(e.target.value.replace(/\D/g, ''))}
+                                placeholder="Ej: 12345678"
                                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-red-600 outline-none transition-all shadow-inner text-lg disabled:opacity-50"
                                 disabled={isSubmitting}
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4 block text-left">Seguridad</label>
+                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4 block text-left">PIN de Seguridad</label>
                             <input
                                 type="password"
                                 required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-red-600 outline-none transition-all shadow-inner text-lg disabled:opacity-50"
+                                maxLength={6}
+                                value={pin}
+                                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                                placeholder="••••••"
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-red-600 outline-none transition-all shadow-inner text-lg disabled:opacity-50 tracking-[0.5em]"
                                 disabled={isSubmitting}
                             />
                         </div>
@@ -153,6 +129,7 @@ export default function UnifiedAdminLoginPage() {
                             {isSubmitting ? 'VERIFICANDO...' : 'Entrar'}
                         </button>
                     </form>
+
 
                     <div className="mt-8 text-center pt-8 border-t border-white/5">
                         <Link href="/" className="text-[10px] font-black text-white/20 hover:text-white uppercase tracking-widest transition-colors flex items-center justify-center gap-2">

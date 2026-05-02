@@ -48,7 +48,7 @@ export default function DoctorDashboard() {
 
                 setDoctorData(doctor);
 
-                if (doctor && doctor.id) {
+                if (doctor && (doctor as any).id) {
                     const { data: pending } = await supabase
                         .from('appointments')
                         .select(`
@@ -59,7 +59,7 @@ export default function DoctorDashboard() {
                             consultation_type,
                             patient:patient_id (full_name, cedula)
                         `)
-                        .eq('doctor_id', doctor.id)
+                        .eq('doctor_id', (doctor as any).id)
                         .eq('status', 'pending')
                         .order('appointment_date', { ascending: false })
                         .order('appointment_time', { ascending: false });
@@ -79,7 +79,7 @@ export default function DoctorDashboard() {
                             status,
                             patient:patient_id (full_name, cedula)
                         `)
-                        .eq('doctor_id', doctor.id)
+                        .eq('doctor_id', (doctor as any).id)
                         .in('status', ['confirmed', 'completed'])
                         .gte('appointment_date', today)
                         .order('appointment_date', { ascending: true })
@@ -157,9 +157,9 @@ export default function DoctorDashboard() {
 
     const handleAppointmentAction = async (id: string, action: 'confirmed' | 'rejected') => {
         try {
-            const { error } = await supabase
+            const { error } = await (supabase as any)
                 .from('appointments')
-                .update({ status: action } as any)
+                .update({ status: action })
                 .eq('id', id);
 
             if (error) throw error;
@@ -290,15 +290,20 @@ export default function DoctorDashboard() {
 
             <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
                 {/* 1. Alerta de Perfil Incompleto (Premium) */}
-                {doctorData && (!doctorData.license_number || !doctorData.phone) && (
+                {doctorData && (
+                    !doctorData.license_number || 
+                    !doctorData.phone || 
+                    !doctorData.experience_years || 
+                    !doctorData.education
+                ) && (
                     <div className="relative overflow-hidden rounded-3xl p-4 flex justify-between items-center border border-yellow-500/20 shadow-2xl animate-fade-in"
                         style={{ backgroundColor: 'rgba(234,179,8,0.1)', backdropFilter: 'blur(12px)' }}>
                         <div className="flex items-center">
                             <div className="w-10 h-10 rounded-2xl bg-yellow-500/20 flex items-center justify-center text-xl mr-4 shadow-inner">⚠️</div>
                             <div>
-                                <p className="text-yellow-200 font-bold text-sm">Perfil Incompleto</p>
+                                <p className="text-yellow-200 font-bold text-sm">Perfil Profesional Incompleto</p>
                                 <p className="text-yellow-200/60 text-xs mt-0.5">
-                                    Valida tu cuenta agregando tu Licencia y Teléfono.
+                                    Para ser visible y atender pacientes, completa tu experiencia, educación y tarifas.
                                 </p>
                             </div>
                         </div>
@@ -595,7 +600,7 @@ export default function DoctorDashboard() {
                                                     </div>
                                                 )}
                                                 <div
-                                                    onClick={() => router.push(`/doctor/patients/${app.patient?.cedula}`)}
+                                                    onClick={() => router.push(`/doctor/patients/${app.patient?.cedula}?appointmentId=${app.id}`)}
                                                     className="group relative overflow-hidden bg-white/[0.02] hover:bg-white/[0.06] backdrop-blur-xl rounded-[1.5rem] p-5 border border-white/5 transition-all duration-500 cursor-pointer flex items-center justify-between"
                                                 >
                                                     <div className="flex items-center gap-6">

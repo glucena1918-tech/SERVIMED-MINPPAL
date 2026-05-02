@@ -7,8 +7,8 @@ import { supabase } from '@/lib/supabase/client';
 
 export default function LoginPage() {
     const router = useRouter();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [cedula, setCedula] = useState('');
+    const [pin, setPin] = useState('');
     const [loading, setLoading] = useState(false);
     const [isChecking, setIsChecking] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -19,28 +19,9 @@ export default function LoginPage() {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
-                    const cleanEmail = user.email?.toLowerCase().trim();
-                    
-                    // Si es Admin o Secretaria, este NO es su portal. Los mandamos al suyo.
-                    if (cleanEmail === 'goldengrovessoul@gmail.com') {
-                        router.replace('/login/admin');
-                        return;
-                    }
-
-                    const { data: secData } = await (supabase as any)
-                        .from('secretaries')
-                        .select('*')
-                        .ilike('email', cleanEmail)
-                        .single();
-
-                    if (secData && secData.status === 'active') {
-                        router.replace('/login/admin');
-                        return;
-                    }
-
-                    // Si es Paciente o Médico, lo mandamos a su respectivo dashboard
                     const userRole = user.app_metadata?.role || user.user_metadata?.role;
                     if (userRole === 'doctor') router.replace('/doctor/dashboard');
+                    else if (userRole === 'admin') router.replace('/login/admin');
                     else router.replace('/patient/dashboard');
                 } else {
                     setIsChecking(false);
@@ -59,40 +40,24 @@ export default function LoginPage() {
         setError(null);
 
         try {
-            const cleanEmail = email.trim().toLowerCase();
-
-            // BLOQUEO PREVENTIVO: Si un admin/sec intenta loguearse aquí
-            if (cleanEmail === 'goldengrovessoul@gmail.com') {
-                setError('ACCESO DENEGADO: Use el portal de Acceso Administrativo.');
-                setLoading(false);
-                return;
-            }
+            // GENERACIÓN DE IDENTIDAD SINTÉTICA
+            // Convertimos la cédula en un correo técnico para Supabase Auth
+            const syntheticEmail = `${cedula.trim()}@servimed.com`;
 
             const { data, error: signInError } = await supabase.auth.signInWithPassword({
-                email: cleanEmail,
-                password,
+                email: syntheticEmail,
+                password: pin,
             });
 
-            if (signInError) throw signInError;
+            if (signInError) {
+                // Manejo de errores amigable
+                if (signInError.message.includes('Invalid login credentials')) {
+                    throw new Error('Cédula o PIN incorrectos. Verifique sus datos.');
+                }
+                throw signInError;
+            }
 
             if (data.user) {
-                const userEmail = data.user.email?.toLowerCase().trim();
-
-                // Verificar si es secretaria (para mandarla a su portal correcto)
-                const { data: secData } = await (supabase as any)
-                    .from('secretaries')
-                    .select('*')
-                    .ilike('email', userEmail)
-                    .single();
-
-                if (secData && secData.status === 'active') {
-                    setError('ACCESO DENEGADO: Use el portal de Acceso Administrativo.');
-                    await supabase.auth.signOut();
-                    setLoading(false);
-                    return;
-                }
-
-                // Si es un usuario válido para este portal (Paciente/Médico)
                 const userRole = data.user.app_metadata?.role || data.user.user_metadata?.role;
                 if (userRole === 'doctor') {
                     router.replace('/doctor/dashboard');
@@ -101,7 +66,7 @@ export default function LoginPage() {
                 }
             }
         } catch (err: any) {
-            setError(err.message || 'Credenciales inválidas');
+            setError(err.message || 'Error de acceso');
             setLoading(false);
         }
     };
@@ -134,8 +99,8 @@ export default function LoginPage() {
                     <div className="inline-block p-4 rounded-3xl bg-white/5 border border-white/10 mb-6 shadow-2xl backdrop-blur-xl">
                         <img src="/images/logo-minppal.png" alt="Logo" className="w-16 h-16 object-cover rounded-2xl" />
                     </div>
-                    <h1 className="text-4xl font-black text-white tracking-tighter mb-2">SSIMINPPAL <span className="text-accent">PACIENTES</span></h1>
-                    <p className="text-white/40 text-sm font-medium uppercase tracking-[0.3em]">Acceso a Consultas y Médicos</p>
+                    <h1 className="text-4xl font-black text-white tracking-tighter mb-2">SERVIMED <span className="text-accent">MINPPAL</span></h1>
+                    <p className="text-white/40 text-sm font-medium uppercase tracking-[0.3em]">Gestión de Salud Institucional</p>
                 </div>
 
                 <div className="bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl">
@@ -147,26 +112,30 @@ export default function LoginPage() {
                         )}
 
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4 text-left block">Correo Electrónico</label>
-                            <input
-                                type="email"
-                                required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder:text-white/10 focus:border-accent outline-none transition-all"
-                                placeholder="usuario@gmail.com"
-                            />
+                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4 text-left block">Cédula de Identidad</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    required
+                                    value={cedula}
+                                    onChange={(e) => setCedula(e.target.value.replace(/\D/g, ''))}
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder:text-white/10 focus:border-accent outline-none transition-all"
+                                    placeholder="Ej: 12345678"
+                                />
+                                <span className="absolute right-6 top-1/2 -translate-y-1/2 text-white/10 font-bold">V-</span>
+                            </div>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4 text-left block">Contraseña</label>
+                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4 text-left block">PIN de Acceso (6 dígitos)</label>
                             <input
                                 type="password"
                                 required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder:text-white/10 focus:border-accent outline-none transition-all"
-                                placeholder="••••••••"
+                                maxLength={6}
+                                value={pin}
+                                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder:text-white/10 focus:border-accent outline-none transition-all tracking-[0.5em]"
+                                placeholder="••••••"
                             />
                         </div>
 
@@ -175,9 +144,10 @@ export default function LoginPage() {
                             disabled={loading}
                             className="w-full bg-accent hover:bg-[#05c492] text-[#020714] font-black py-5 rounded-2xl shadow-xl shadow-accent/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
                         >
-                            {loading ? 'Accediendo...' : 'Ingresar'}
+                            {loading ? 'Validando...' : 'Iniciar Sesión'}
                         </button>
                     </form>
+
 
                     <div className="mt-8 pt-8 border-t border-white/5 flex flex-col gap-4">
                         <Link href="/register" className="w-full py-4 px-6 rounded-2xl bg-white/5 border border-white/10 text-white font-black text-xs uppercase tracking-widest text-center hover:bg-white/10 hover:border-accent/40 transition-all">

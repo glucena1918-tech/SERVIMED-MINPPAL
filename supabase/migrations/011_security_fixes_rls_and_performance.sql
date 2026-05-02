@@ -1,0 +1,92 @@
+-- ====================================================================
+-- MIGRACIÓN 011: SOLUCIÓN DE ERRORES DE SEGURIDAD Y PERFORMANCE (ADVISOR)
+-- ====================================================================
+-- Esta migración resuelve los 5 errores críticos mostrados en el Advisor:
+-- 1. Activa RLS en la tabla 'appointments'
+-- 2. Activa RLS en la tabla 'secretaries'
+-- 3. Resuelve el problema de "Sensitive Columns Exposed"
+-- 4. Agrega índices para mejorar el rendimiento (Warnings)
+-- ====================================================================
+
+-- 1. Habilitar RLS en las tablas reportadas con error
+ALTER TABLE IF EXISTS public.appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.secretaries ENABLE ROW LEVEL SECURITY;
+
+-- Asegurar que las demás tablas también tengan RLS (Buenas prácticas)
+ALTER TABLE IF EXISTS public.patients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.doctors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.medical_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.prescriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.admin_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.doctor_availability ENABLE ROW LEVEL SECURITY;
+
+-- 2. Políticas para la tabla 'secretaries'
+-- Nota: Como esta tabla parece haber sido creada manualmente, definimos sus políticas aquí.
+-- Se asume que tiene una columna 'user_id' o se vincula por 'email'.
+
+-- Eliminar políticas previas si existen para evitar conflictos
+DROP POLICY IF EXISTS "secretaries_admin_all" ON public.secretaries;
+DROP POLICY IF EXISTS "secretaries_select_own" ON public.secretaries;
+
+-- Política: Administradores tienen acceso total (USANDO SOLO app_metadata POR SEGURIDAD)
+CREATE POLICY "secretaries_admin_all" ON public.secretaries
+FOR ALL
+TO authenticated
+USING (
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+);
+
+-- Política: Secretarias pueden ver su propio registro (Vinculado por email)
+CREATE POLICY "secretaries_select_own" ON public.secretaries
+FOR SELECT
+TO authenticated
+USING (
+    auth.jwt() ->> 'email' = email
+);
+
+-- 3. Optimización de Performance (Resolviendo gran parte de los 26 Warnings)
+-- Agregamos índices en todas las llaves foráneas y columnas de búsqueda frecuente
+
+-- Índices en llaves foráneas (FKs)
+CREATE INDEX IF NOT EXISTS idx_appointments_patient_id ON public.appointments(patient_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_doctor_id ON public.appointments(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_medical_records_patient_id ON public.medical_records(patient_id);
+CREATE INDEX IF NOT EXISTS idx_medical_records_doctor_id ON public.medical_records(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_id ON public.prescriptions(patient_id);
+CREATE INDEX IF NOT EXISTS idx_prescriptions_doctor_id ON public.prescriptions(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_doctor_availability_doctor_id ON public.doctor_availability(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_patients_user_id ON public.patients(user_id);
+CREATE INDEX IF NOT EXISTS idx_doctors_user_id ON public.doctors(user_id);
+-- Eliminado idx_secretaries_user_id porque la tabla usa email
+CREATE INDEX IF NOT EXISTS idx_prescription_items_medical_record_id ON public.prescription_items(medical_record_id);
+
+-- Índices en columnas de búsqueda frecuente
+CREATE INDEX IF NOT EXISTS idx_appointments_status ON public.appointments(status);
+CREATE INDEX IF NOT EXISTS idx_appointments_date_time ON public.appointments(appointment_date, appointment_time);
+CREATE INDEX IF NOT EXISTS idx_patients_cedula ON public.patients(cedula);
+CREATE INDEX IF NOT EXISTS idx_medical_records_record_date ON public.medical_records(record_date);
+CREATE INDEX IF NOT EXISTS idx_secretaries_email ON public.secretaries(email);
+
+-- 4. Resolver "Sensitive Columns Exposed"
+-- Esto sucede cuando hay una política SELECT que usa USING(true) en tablas con datos sensibles.
+-- Reforzamos las políticas de SELECT para appointments.
+
+DROP POLICY IF EXISTS "appointments_select_as_patient" ON public.appointments;
+CREATE POLICY "appointments_select_as_patient" ON public.appointments
+  FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM patients WHERE patients.id = appointments.patient_id AND patients.user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "appointments_select_as_doctor" ON public.appointments;
+CREATE POLICY "appointments_select_as_doctor" ON public.appointments
+  FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM doctors WHERE doctors.id = appointments.doctor_id AND doctors.user_id = auth.uid()));
+
+-- 5. Verificación de Extensiones
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- ====================================================================
+-- FIN DE LA MIGRACIÓN
+-- ====================================================================

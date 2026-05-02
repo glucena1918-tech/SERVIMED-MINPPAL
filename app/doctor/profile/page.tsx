@@ -16,6 +16,8 @@ interface DoctorProfile {
     email: string | null;
     bio: string | null;
     avatar_url: string | null;
+    experience_years: number | null;
+    education: string | null;
     user_id: string;
 }
 
@@ -54,7 +56,9 @@ export default function DoctorProfilePage() {
         license_number: '',
         phone: '',
         bio: '',
-        avatar_url: ''
+        avatar_url: '',
+        experience_years: 0,
+        education: ''
     });
 
     const isBase64 = (str: string | null) => str?.startsWith('data:image/');
@@ -106,7 +110,9 @@ export default function DoctorProfilePage() {
                         license_number: doc.license_number || '',
                         phone: doc.phone || '',
                         bio: doc.bio || '',
-                        avatar_url: doc.avatar_url || ''
+                        avatar_url: doc.avatar_url || '',
+                        experience_years: doc.experience_years || 0,
+                        education: doc.education || ''
                     });
                     if (isBase64(doc.avatar_url)) setHasBase64(true);
 
@@ -176,12 +182,20 @@ export default function DoctorProfilePage() {
                 phone: formData.phone,
                 bio: formData.bio,
                 avatar_url: formData.avatar_url,
+                experience_years: formData.experience_years,
+                education: formData.education,
                 updated_at: new Date().toISOString(),
                 is_active: true,
                 is_verified: false
             };
 
-            const { data: doctorData } = await supabase
+            const { error: doctorUpdateError } = await (supabase as any)
+                .from('doctors')
+                .upsert(updates, { onConflict: 'user_id' });
+
+            if (doctorUpdateError) throw doctorUpdateError;
+
+            const { data: doctorData } = await (supabase as any)
                 .from('doctors')
                 .select('id')
                 .eq('user_id', user.id)
@@ -190,7 +204,7 @@ export default function DoctorProfilePage() {
             if (doctorData) {
                 // Actualizar Disponibilidad
                 // 1. Borrar actual
-                await supabase.from('doctor_availability').delete().eq('doctor_id', doctorData.id);
+                await (supabase as any).from('doctor_availability').delete().eq('doctor_id', doctorData.id);
                 
                 // 2. Insertar nuevos según selección
                 const availToInsert = [];
@@ -218,7 +232,7 @@ export default function DoctorProfilePage() {
                     }
                 }
                 if (availToInsert.length > 0) {
-                    await supabase.from('doctor_availability').insert(availToInsert);
+                    await (supabase as any).from('doctor_availability').insert(availToInsert);
                 }
             }
 
@@ -234,8 +248,12 @@ export default function DoctorProfilePage() {
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        const { name, value, type } = e.target as HTMLInputElement;
+        
+        setFormData(prev => ({ 
+            ...prev, 
+            [name]: type === 'number' ? (value === '' ? 0 : parseFloat(value)) : value 
+        }));
     };
 
     // 1. Seleccionar archivo y abrir modal de recorte
@@ -262,30 +280,40 @@ export default function DoctorProfilePage() {
             const croppedImageBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
             if (!croppedImageBlob) throw new Error('Error al procesar el recorte de la imagen');
 
+            // Crear una URL local para previsualización inmediata (sin esperar a Supabase)
+            const localPreviewUrl = URL.createObjectURL(croppedImageBlob);
+            setFormData(prev => ({ ...prev, avatar_url: localPreviewUrl }));
+
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Usuario no encontrado');
 
-            const fileName = `${user.id}/${Date.now()}.jpg`;
-            const filePath = fileName;
+            // Simplificamos la ruta: un solo archivo por usuario para evitar acumular basura
+            const filePath = `${user.id}/profile.jpg`;
 
             // Subir a Supabase
             const { error: uploadError } = await supabase.storage
                 .from('avatars')
                 .upload(filePath, croppedImageBlob, {
                     contentType: 'image/jpeg',
-                    cacheControl: '3600',
+                    cacheControl: '0', // Evitar caché para que se vea el cambio al instante
                     upsert: true
                 });
 
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
+            // Obtener la URL pública final
+            const { data } = supabase.storage
                 .from('avatars')
                 .getPublicUrl(filePath);
 
-            setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
+            const publicUrl = data?.publicUrl;
+            
+            if (publicUrl) {
+                // Añadir un timestamp para romper el caché del navegador
+                const finalUrl = `${publicUrl}?t=${Date.now()}`;
+                setFormData(prev => ({ ...prev, avatar_url: finalUrl }));
+            }
+            
             setHasBase64(false);
-            setImageSrc(null); // Cerrar modal
+            setImageSrc(null);
             setMessage({ type: 'success', text: 'Imagen actualizada. No olvide guardar los cambios.' });
 
         } catch (e: any) {
@@ -522,6 +550,34 @@ export default function DoctorProfilePage() {
                                     className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4 border"
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Este número será visible para coordinar citas.</p>
+                            </div>
+
+                            {/* Años de Experiencia */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">Años de Experiencia <span className="text-red-500">*</span></label>
+                                <input
+                                    type="number"
+                                    name="experience_years"
+                                    required
+                                    min="0"
+                                    value={formData.experience_years}
+                                    onChange={handleChange}
+                                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4 border"
+                                />
+                            </div>
+
+                            {/* Educación */}
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">Educación y Títulos <span className="text-red-500">*</span></label>
+                                <input
+                                    type="text"
+                                    name="education"
+                                    required
+                                    value={formData.education}
+                                    onChange={handleChange}
+                                    placeholder="Ej: Especialista en Medicina Interna - UCV"
+                                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4 border"
+                                />
                             </div>
 
                             {/* Biografía / Descripción */}

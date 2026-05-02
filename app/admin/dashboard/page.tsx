@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { toast, Toaster } from 'react-hot-toast';
+import jsPDF from 'jspdf';
 
 interface AdminStats {
     totalAppointments: number;
@@ -27,6 +28,8 @@ export default function AdminDashboard() {
     const [adminData, setAdminData] = useState<any>(null);
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [activeTab, setActiveTab] = useState<'kpis' | 'users' | 'doctors'>('kpis');
+    const [deletingSecId, setDeletingSecId] = useState<string | null>(null);
+    const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
     
     // Estados de Filtros
     const [dateFrom, setDateFrom] = useState('');
@@ -38,6 +41,7 @@ export default function AdminDashboard() {
     const [specialties, setSpecialties] = useState<string[]>([]);
 
     // Formulario para crear secretaria
+    const [secCedula, setSecCedula] = useState('');
     const [secEmail, setSecEmail] = useState('');
     const [secName, setSecName] = useState('');
     const [secPass, setSecPass] = useState('');
@@ -81,17 +85,40 @@ export default function AdminDashboard() {
     const handleCreateSecretary = async (e: React.FormEvent) => {
         e.preventDefault();
         setCreatingSec(true);
+        const cleanCedula = secCedula.trim();
         const cleanEmail = secEmail.trim().toLowerCase();
+        const syntheticEmail = `${cleanCedula}@servimed.com`;
+
         try {
-            const { error } = await (supabase as any).from('secretaries').insert({
+            // 1. Crear el usuario en Supabase Auth
+            // Nota: El PIN de 6 dígitos se usa como password
+            const { error: authError } = await supabase.auth.signUp({
+                email: syntheticEmail,
+                password: secPass,
+                options: {
+                    data: {
+                        full_name: secName,
+                        role: 'secretary',
+                        cedula: cleanCedula
+                    }
+                }
+            });
+
+            if (authError) throw authError;
+
+            // 2. Insertar en la tabla de secretarias para validación de acceso
+            const { error: dbError } = await (supabase as any).from('secretaries').insert({
                 full_name: secName,
-                email: cleanEmail,
+                email: syntheticEmail,
+                cedula: cleanCedula,
+                real_email: cleanEmail,
                 status: 'active'
             });
 
-            if (error) throw error;
+            if (dbError) throw dbError;
 
-            toast.success('Cuenta de Secretaria registrada en el sistema');
+            toast.success('Cuenta de Secretaría Creada y Autenticada');
+            setSecCedula('');
             setSecEmail('');
             setSecName('');
             setSecPass('');
@@ -115,7 +142,7 @@ export default function AdminDashboard() {
                 { data: patData }
             ] = await Promise.all([
                 supabase.from('appointments').select('id, appointment_date, doctor_id, status, medical_record_id'),
-                supabase.from('doctors').select('id, full_name, specialty').eq('is_active', true),
+                supabase.from('doctors').select('*').order('created_at', { ascending: false }),
                 supabase.from('medical_records').select('id, diagnosis, doctor_id, created_at'),
                 supabase.from('prescription_items').select('medicine_name, medical_record_id'),
                 supabase.from('patients').select('id, agency')
@@ -213,7 +240,6 @@ export default function AdminDashboard() {
     const [editingSec, setEditingSec] = useState<any>(null);
     const [editName, setEditName] = useState('');
     const [editEmail, setEditEmail] = useState('');
-    const [deletingSecId, setDeletingSecId] = useState<string | null>(null);
 
     const toggleSecretaryStatus = async (id: string, currentStatus: string) => {
         const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
@@ -260,6 +286,177 @@ export default function AdminDashboard() {
             fetchSecretaries();
         } catch (error) {
             toast.error('Error al eliminar');
+        }
+    };
+
+    const toggleDoctorVerification = async (id: string, currentStatus: boolean) => {
+        // Actualización optimista para feedback instantáneo
+        const originalDoctors = [...doctors];
+        setDoctors(doctors.map(d => d.id === id ? { ...d, is_verified: !currentStatus } : d));
+        
+        try {
+            const { error } = await (supabase as any)
+                .from('doctors')
+                .update({ is_verified: !currentStatus })
+                .eq('id', id);
+
+            if (error) throw error;
+            toast.success(`Médico ${!currentStatus ? 'verificado' : 'desmarcado'} correctamente`);
+            fetchStats();
+        } catch (error) {
+            setDoctors(originalDoctors); // Revertir si falla
+            toast.error('Error al actualizar verificación. Verifica permisos en Supabase.');
+        }
+    };
+
+    const toggleDoctorActive = async (id: string, currentStatus: boolean) => {
+        const originalDoctors = [...doctors];
+        setDoctors(doctors.map(d => d.id === id ? { ...d, is_active: !currentStatus } : d));
+
+        try {
+            const { error } = await (supabase as any)
+                .from('doctors')
+                .update({ is_active: !currentStatus })
+                .eq('id', id);
+
+            if (error) throw error;
+            toast.success(`Estado del médico actualizado`);
+            fetchStats();
+        } catch (error) {
+            setDoctors(originalDoctors);
+            toast.error('Error al actualizar estado');
+        }
+    };
+
+    const downloadDoctorCredential = async (doc: any) => {
+        const docPDF = new jsPDF();
+        const medicalColor = [0, 150, 136]; // Verde Teal Médico
+        
+        // Función para cargar imágenes y convertirlas a Base64 (necesario para jsPDF)
+        const loadImage = (url: string): Promise<string> => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.src = url;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                img.onerror = reject;
+            });
+        };
+
+        try {
+            // 1. Cabecera Institucional (Verde Teal)
+            docPDF.setFillColor(medicalColor[0], medicalColor[1], medicalColor[2]);
+            docPDF.rect(0, 0, 210, 50, 'F');
+            
+            // Intentar cargar logo
+            try {
+                const logoBase64 = await loadImage('/images/logo-minppal.png');
+                docPDF.addImage(logoBase64, 'PNG', 85, 5, 40, 25); // Logo centrado
+            } catch (e) { console.error('Error cargando logo'); }
+
+            docPDF.setTextColor(255, 255, 255);
+            docPDF.setFontSize(24);
+            docPDF.setFont('helvetica', 'bold');
+            docPDF.text('SSIMINPPAL', 105, 38, { align: 'center' });
+            docPDF.setFontSize(10);
+            docPDF.setFont('helvetica', 'normal');
+            docPDF.text('SISTEMA DE SALUD INSTITUCIONAL MINPPAL', 105, 45, { align: 'center' });
+
+            // 2. Foto del Médico (Debajo de la cabecera)
+            let yPos = 65;
+            if (doc.avatar_url) {
+                try {
+                    const avatarBase64 = await loadImage(doc.avatar_url);
+                    // Dibujar círculo blanco de fondo para la foto
+                    docPDF.setDrawColor(255, 255, 255);
+                    docPDF.setLineWidth(1);
+                    docPDF.circle(105, 75, 20, 'S');
+                    // Agregar imagen (jsPDF no recorta círculos nativamente, pero la centramos bien)
+                    docPDF.addImage(avatarBase64, 'PNG', 85, 55, 40, 40); 
+                    yPos = 105;
+                } catch (e) { console.error('Error cargando avatar'); }
+            }
+
+            // 3. Título del Documento
+            docPDF.setTextColor(0, 0, 0);
+            docPDF.setFontSize(16);
+            docPDF.setFont('helvetica', 'bold');
+            docPDF.text('CREDENCIAL DE ESPECIALISTA VERIFICADO', 105, yPos, { align: 'center' });
+            docPDF.setDrawColor(medicalColor[0], medicalColor[1], medicalColor[2]);
+            docPDF.line(60, yPos + 3, 150, yPos + 3);
+
+            // 4. Datos Personales
+            docPDF.setFontSize(12);
+            docPDF.setTextColor(100, 100, 100);
+            docPDF.text('INFORMACIÓN PROFESIONAL', 20, yPos + 20);
+            
+            docPDF.setTextColor(0, 0, 0);
+            docPDF.setFont('helvetica', 'bold');
+            docPDF.text(`Especialista: ${doc.full_name}`, 20, yPos + 30);
+            docPDF.text(`Cédula: ${doc.cedula}`, 20, yPos + 40);
+            docPDF.text(`Especialidad: ${doc.specialty}`, 20, yPos + 50);
+            docPDF.text(`Licencia / M.P.P.S: ${doc.license_number || 'N/A'}`, 20, yPos + 60);
+
+            // 5. Perfil Académico
+            docPDF.setTextColor(100, 100, 100);
+            docPDF.setFont('helvetica', 'normal');
+            docPDF.text('RESUMEN CURRICULAR', 20, yPos + 80);
+            
+            docPDF.setTextColor(0, 0, 0);
+            docPDF.setFont('helvetica', 'bold');
+            docPDF.text('Formación Académica:', 20, yPos + 90);
+            docPDF.setFont('helvetica', 'normal');
+            const educationLines = docPDF.splitTextToSize(doc.education || 'Información no suministrada', 170);
+            docPDF.text(educationLines, 20, yPos + 97);
+
+            docPDF.setFont('helvetica', 'bold');
+            docPDF.text(`Experiencia Comprobada: ${doc.experience_years || 0} años`, 20, yPos + 120);
+
+            // 6. Pie de página institucional
+            docPDF.setFillColor(medicalColor[0], medicalColor[1], medicalColor[2]);
+            docPDF.rect(20, yPos + 135, 170, 20, 'F');
+            docPDF.setTextColor(255, 255, 255);
+            docPDF.setFontSize(12);
+            docPDF.text('ESTADO: VALIDADO INSTITUCIONALMENTE', 105, yPos + 147, { align: 'center' });
+
+            docPDF.setFontSize(8);
+            docPDF.setTextColor(150, 150, 150);
+            const footerY = 285;
+            docPDF.text(`Documento generado el ${new Date().toLocaleDateString()} - SSIMINPPAL v1.0`, 105, footerY, { align: 'center' });
+
+            docPDF.save(`Credencial_SSIMINPPAL_${doc.cedula}.pdf`);
+            toast.success('Credencial institucional generada');
+        } catch (error) {
+            console.error(error);
+            toast.error('Error al generar el PDF');
+        }
+    };
+
+    const deleteDoctor = async () => {
+        if (!deletingDocId) return;
+
+        try {
+            const { error } = await (supabase as any)
+                .from('doctors')
+                .delete()
+                .eq('id', deletingDocId);
+
+            if (error) throw error;
+            
+            toast.success('Médico eliminado permanentemente');
+            setDeletingDocId(null);
+            fetchStats();
+        } catch (error: any) {
+            console.error(error);
+            toast.error('No se puede eliminar: El médico tiene registros vinculados.');
+            setDeletingDocId(null);
         }
     };
 
@@ -587,27 +784,41 @@ export default function AdminDashboard() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-4">Correo Institucional</label>
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-4">Cédula Administrativa</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={secCedula}
+                                            onChange={e => setSecCedula(e.target.value.replace(/\D/g, ''))}
+                                            placeholder="Solo números (ej: 12345678)"
+                                            className="w-full px-6 py-4 rounded-2xl bg-[#020714]/50 border border-white/10 focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-white placeholder:text-white/20"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-4">PIN de Acceso (6 dígitos)</label>
+                                        <input 
+                                            type="password" 
+                                            required
+                                            maxLength={6}
+                                            value={secPass}
+                                            onChange={e => setSecPass(e.target.value.replace(/\D/g, ''))}
+                                            placeholder="••••••"
+                                            className="w-full px-6 py-4 rounded-2xl bg-[#020714]/50 border border-white/10 focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-white placeholder:text-white/20"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-4">Correo de Control (Opcional)</label>
                                         <input 
                                             type="email" 
-                                            required
                                             value={secEmail}
                                             onChange={e => setSecEmail(e.target.value)}
                                             placeholder="secretaria@minppal.gob.ve"
                                             className="w-full px-6 py-4 rounded-2xl bg-[#020714]/50 border border-white/10 focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-white placeholder:text-white/20"
                                         />
                                     </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-4">Contraseña Inicial</label>
-                                    <input 
-                                        type="password" 
-                                        required
-                                        value={secPass}
-                                        onChange={e => setSecPass(e.target.value)}
-                                        placeholder="••••••••"
-                                        className="w-full px-6 py-4 rounded-2xl bg-[#020714]/50 border border-white/10 focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-white placeholder:text-white/20"
-                                    />
                                 </div>
                                 
                                 <button 
@@ -635,7 +846,7 @@ export default function AdminDashboard() {
                                     <thead>
                                         <tr className="border-b border-white/5">
                                             <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4">Nombre</th>
-                                            <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4">Email</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4">Cédula</th>
                                             <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4 text-center">Estado</th>
                                             <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4 text-right">Acciones</th>
                                         </tr>
@@ -651,7 +862,7 @@ export default function AdminDashboard() {
                                                         <span className="font-bold text-white/80">{sec.full_name}</span>
                                                     </div>
                                                 </td>
-                                                <td className="py-6 px-4 text-sm text-white/40">{sec.email}</td>
+                                                <td className="py-6 px-4 text-sm text-white/40">{sec.cedula || 'N/A'}</td>
                                                 <td className="py-6 px-4 text-center">
                                                     <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${sec.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
                                                         {sec.status === 'active' ? 'En Servicio' : 'Suspendida'}
@@ -702,15 +913,114 @@ export default function AdminDashboard() {
 
                 {/* Tab: Doctors (Verification) */}
                 {activeTab === 'doctors' && (
-                    <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[3rem] p-12 text-center animate-fade-in">
-                        <div className="text-6xl mb-6">🔍</div>
-                        <h2 className="text-2xl font-black mb-4">Verificación de Especialistas</h2>
-                        <p className="text-white/30 max-w-md mx-auto mb-8 leading-relaxed">
-                            Aquí aparecerán los médicos que se registren por primera vez. Deberás verificar sus credenciales antes de que puedan atender pacientes.
-                        </p>
-                        <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl bg-accent/10 border border-accent/20 text-accent text-xs font-black uppercase tracking-widest">
-                            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                            0 Solicitudes Pendientes
+                    <div className="space-y-8 animate-fade-in">
+                        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[3rem] p-10 overflow-hidden">
+                            <div className="flex items-center justify-between mb-8">
+                                <div>
+                                    <h3 className="text-2xl font-black">Control de <span className="text-accent">Especialistas</span></h3>
+                                    <p className="text-white/40 text-sm mt-1">Verifica credenciales y gestiona el acceso del personal médico.</p>
+                                </div>
+                                <div className="flex gap-4">
+                                    <div className="px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                                        <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">
+                                            {doctors.filter(d => !d.is_verified).length} PENDIENTES
+                                        </span>
+                                    </div>
+                                    <button onClick={fetchStats} className="text-white/40 hover:text-white text-xs font-black">🔄</button>
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="border-b border-white/5">
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4">Especialista</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4">Licencia / Cédula</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4 text-center">Verificación</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4 text-center">Estado</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4 text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {doctors.map((doc) => (
+                                            <tr key={doc.id} className="border-b border-white/5 group hover:bg-white/[0.02] transition-colors">
+                                                <td className="py-6 px-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="relative">
+                                                            {doc.avatar_url ? (
+                                                                <img src={doc.avatar_url} className="w-12 h-12 rounded-2xl object-cover border border-white/10" alt="" />
+                                                            ) : (
+                                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black">
+                                                                    {doc.full_name?.charAt(0)}
+                                                                </div>
+                                                            )}
+                                                            {doc.is_verified && (
+                                                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full border-2 border-[#020714] flex items-center justify-center text-[8px]">✓</div>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-white leading-tight">{doc.full_name}</p>
+                                                            <p className="text-[10px] text-accent font-black uppercase tracking-widest mt-1">{doc.specialty}</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-6 px-4">
+                                                    <p className="text-sm font-bold text-white/70">{doc.license_number || 'SIN LICENCIA'}</p>
+                                                    <p className="text-[10px] text-white/30 font-mono mt-1">C.I. {doc.cedula}</p>
+                                                </td>
+                                                <td className="py-6 px-4 text-center">
+                                                    <button 
+                                                        onClick={() => toggleDoctorVerification(doc.id, doc.is_verified)}
+                                                        className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${
+                                                            doc.is_verified 
+                                                            ? 'bg-accent/10 border-accent/30 text-accent' 
+                                                            : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500 hover:bg-yellow-500 hover:text-black'
+                                                        }`}
+                                                    >
+                                                        {doc.is_verified ? 'VERIFICADO' : 'PENDIENTE'}
+                                                    </button>
+                                                </td>
+                                                <td className="py-6 px-4 text-center">
+                                                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${doc.is_active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                        {doc.is_active ? 'ACTIVO' : 'INACTIVO'}
+                                                    </span>
+                                                </td>
+                                                <td className="py-6 px-4 text-right">
+                                                    <div className="flex items-center justify-end gap-3">
+                                                        <button 
+                                                            onClick={() => toggleDoctorActive(doc.id, doc.is_active)}
+                                                            className={`p-2.5 rounded-xl border transition-all ${doc.is_active ? 'border-red-500/20 text-red-400 hover:bg-red-500/10' : 'border-green-500/20 text-green-400 hover:bg-green-500/10'}`}
+                                                            title={doc.is_active ? 'Desactivar Médico' : 'Activar Médico'}
+                                                        >
+                                                            {doc.is_active ? '🚫' : '✅'}
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => downloadDoctorCredential(doc)}
+                                                            className="p-2.5 rounded-xl border border-white/10 text-white/40 hover:text-white hover:bg-white/5 transition-all"
+                                                            title="Descargar Credencial PDF"
+                                                        >
+                                                            📄
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => setDeletingDocId(doc.id)}
+                                                            className="p-2.5 rounded-xl border border-red-500/10 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 transition-all"
+                                                            title="ELIMINAR MÉDICO PERMANENTEMENTE"
+                                                        >
+                                                            🗑️
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {doctors.length === 0 && (
+                                            <tr>
+                                                <td colSpan={5} className="py-20 text-center text-white/20 italic">No hay médicos registrados en la base de datos.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -812,6 +1122,37 @@ export default function AdminDashboard() {
                     animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
                 }
             `}</style>
+            {/* Modal de Confirmación para Médicos */}
+            {deletingDocId && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-black/60 animate-in fade-in duration-300">
+                    <div className="w-full max-w-md bg-[#0a0f1e] border border-red-500/30 rounded-3xl p-8 shadow-2xl shadow-red-500/10 scale-in-center">
+                        <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-6">
+                            <span className="text-4xl">⚠️</span>
+                        </div>
+                        <h3 className="text-2xl font-black text-center mb-4 text-white uppercase tracking-tighter">¡Advertencia Crítica!</h3>
+                        <p className="text-white/60 text-center mb-8 leading-relaxed">
+                            Estás a punto de <span className="text-red-400 font-bold">ELIMINAR PERMANENTEMENTE</span> a este especialista. 
+                            Toda su información profesional será borrada de SSIMINPPAL. 
+                            <br/><br/>
+                            <span className="text-[10px] uppercase tracking-[0.2em] bg-red-500/20 text-red-400 px-4 py-1.5 rounded-full font-black">Acción Irreversible</span>
+                        </p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button 
+                                onClick={() => setDeletingDocId(null)}
+                                className="py-4 rounded-2xl bg-white/5 hover:bg-white/10 text-white font-black text-xs uppercase tracking-widest transition-all border border-white/10"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={deleteDoctor}
+                                className="py-4 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-red-600/20"
+                            >
+                                Sí, Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

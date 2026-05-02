@@ -11,9 +11,10 @@ export default function RegisterPage() {
     const roleParam = searchParams.get('role') || 'patient';
 
     const [role, setRole] = useState<'patient' | 'doctor'>(roleParam as 'patient' | 'doctor');
+    const [fullName, setFullName] = useState('');
+    const [cedula, setCedula] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [fullName, setFullName] = useState('');
     const [specialty, setSpecialty] = useState('');
     const [licenseNumber, setLicenseNumber] = useState('');
     const [loading, setLoading] = useState(false);
@@ -30,22 +31,25 @@ export default function RegisterPage() {
         setError(null);
 
         try {
+            // GENERACIÓN DE IDENTIDAD SINTÉTICA PARA AUTH
+            const syntheticEmail = `${cedula.trim()}@servimed.com`;
+
             // Registrar usuario en Supabase Auth
             const { data: authData, error: signUpError } = await supabase.auth.signUp({
-                email,
+                email: syntheticEmail,
                 password,
                 options: {
                     data: {
                         role,
                         full_name: fullName,
+                        real_email: email, // Guardamos el correo real en metadata por seguridad extra
                     },
                 },
             });
 
             if (signUpError) {
-                // Mejorar mensajes de error
                 if (signUpError.message.includes('already registered')) {
-                    throw new Error('Este correo electrónico ya está registrado. Por favor, inicia sesión.');
+                    throw new Error('Esta cédula ya se encuentra registrada en el sistema.');
                 }
                 throw signUpError;
             }
@@ -53,44 +57,41 @@ export default function RegisterPage() {
             if (authData.user) {
                 // Crear perfil en la tabla correspondiente
                 if (role === 'doctor') {
-                    const { error: doctorError } = await supabase
+                    const { error: dbError } = await (supabase as any)
                         .from('doctors')
                         .insert({
-                            user_id: authData.user.id,
+                            user_id: authData.user?.id,
                             full_name: fullName,
-                            specialty,
+                            cedula: cedula.trim(),
+                            email: email.trim(), 
+                            specialty: specialty,
                             license_number: licenseNumber,
                             is_verified: false,
                             is_active: true,
                         });
 
-                    if (doctorError) {
-                        console.error('Error creating doctor profile:', doctorError);
-                        throw new Error('Error al crear el perfil del médico. Por favor, contacta al administrador.');
-                    }
+                    if (dbError) throw dbError;
                 } else {
-                    const { error: patientError } = await supabase
+                    const { error: dbError } = await (supabase as any)
                         .from('patients')
                         .insert({
-                            user_id: authData.user.id,
+                            user_id: authData.user?.id,
                             full_name: fullName,
-                            date_of_birth: '1990-01-01', // Placeholder
+                            cedula: cedula.trim(),
+                            email: email.trim(), 
+                            date_of_birth: '1990-01-01', 
                             gender: 'other',
                         });
 
-                    if (patientError) {
-                        console.error('Error creating patient profile:', patientError);
-                        throw new Error('Error al crear el perfil del paciente. Por favor, contacta al administrador.');
-                    }
+                    if (dbError) throw dbError;
                 }
 
-                // Redirigir a login con mensaje de éxito
-                alert('¡Cuenta creada exitosamente! Por favor, inicia sesión.');
+                alert('¡Registro exitoso! Ya puede ingresar con su Cédula y PIN.');
                 window.location.href = '/login';
             }
         } catch (err: any) {
             console.error('Registration error:', err);
-            setError(err.message || 'Error al registrarse. Por favor, intenta de nuevo.');
+            setError(err.message || 'Error al registrarse.');
         } finally {
             setLoading(false);
         }
@@ -235,8 +236,26 @@ export default function RegisterPage() {
                         )}
 
                         <div>
+                            <label htmlFor="cedula" className="block text-sm font-semibold text-white/70 mb-2 uppercase tracking-wider">
+                                Cédula de Identidad
+                            </label>
+                            <input
+                                id="cedula"
+                                type="text"
+                                required
+                                value={cedula}
+                                onChange={(e) => setCedula(e.target.value.replace(/\D/g, ''))}
+                                className="w-full px-4 py-3 rounded-xl border border-white/15 text-white placeholder-white/30 focus:outline-none transition"
+                                style={{ backgroundColor: 'rgba(255,255,255,0.07)' }}
+                                onFocus={e => (e.target.style.boxShadow = '0 0 0 2px #06D6A0')}
+                                onBlur={e => (e.target.style.boxShadow = 'none')}
+                                placeholder="Solo números (Ej: 12345678)"
+                            />
+                        </div>
+
+                        <div>
                             <label htmlFor="email" className="block text-sm font-semibold text-white/70 mb-2 uppercase tracking-wider">
-                                Correo Electrónico
+                                Correo Electrónico (Para Control)
                             </label>
                             <input
                                 id="email"
@@ -254,20 +273,21 @@ export default function RegisterPage() {
 
                         <div>
                             <label htmlFor="password" className="block text-sm font-semibold text-white/70 mb-2 uppercase tracking-wider">
-                                Contraseña
+                                PIN de Acceso (6 dígitos)
                             </label>
                             <input
                                 id="password"
                                 type="password"
                                 required
                                 minLength={6}
+                                maxLength={6}
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-white/15 text-white placeholder-white/30 focus:outline-none transition"
+                                onChange={(e) => setPassword(e.target.value.replace(/\D/g, ''))}
+                                className="w-full px-4 py-3 rounded-xl border border-white/15 text-white placeholder-white/30 focus:outline-none transition tracking-[0.3em]"
                                 style={{ backgroundColor: 'rgba(255,255,255,0.07)' }}
                                 onFocus={e => (e.target.style.boxShadow = '0 0 0 2px #06D6A0')}
                                 onBlur={e => (e.target.style.boxShadow = 'none')}
-                                placeholder="Mínimo 6 caracteres"
+                                placeholder="••••••"
                             />
                         </div>
 

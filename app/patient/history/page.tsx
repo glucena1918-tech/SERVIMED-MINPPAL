@@ -149,26 +149,33 @@ const generatePDF = async (records: MedicalRecord[], patientName: string) => {
     y = headerH + 8;
 
     // Paciente banner
+    const patientBoxHeight = 22;
     doc.setFillColor(...COLORS.lightGray);
-    doc.roundedRect(margin, y, contentW, 18, 3, 3, 'F');
+    doc.roundedRect(margin, y, contentW, patientBoxHeight, 3, 3, 'F');
     doc.setDrawColor(...COLORS.accent);
     doc.setLineWidth(0.5);
-    doc.roundedRect(margin, y, contentW, 18, 3, 3, 'S');
+    doc.roundedRect(margin, y, contentW, patientBoxHeight, 3, 3, 'S');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(...COLORS.midGray);
-    doc.text('PACIENTE', margin + 5, y + 6);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(...COLORS.navy);
-    doc.text(patientName.toUpperCase(), margin + 5, y + 13);
+    doc.text('PACIENTE', margin + 5, y + 7);
+    
+    // Texto legal - Movido un poco más arriba y a la derecha con cuidado
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setTextColor(...COLORS.midGray);
-    doc.text('Documento privado y confidencial — Solo para uso médico autorizado', W - margin - 5, y + 10, { align: 'right' });
+    doc.text('DOCUMENTO PRIVADO Y CONFIDENCIAL', W - margin - 5, y + 7, { align: 'right' });
 
-    y += 26;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(...COLORS.navy);
+    // Limitamos el ancho del nombre para evitar que choque con el borde derecho
+    const nameText = patientName.toUpperCase();
+    const maxNameWidth = contentW - 10;
+    doc.text(nameText, margin + 5, y + 15, { maxWidth: maxNameWidth });
+
+    y += patientBoxHeight + 8;
 
     // ── REGISTROS ─────────────────────────────────────────────
     records.forEach((record, idx) => {
@@ -186,25 +193,41 @@ const generatePDF = async (records: MedicalRecord[], patientName: string) => {
         doc.setTextColor(...COLORS.white);
         doc.text(`${idx + 1}`, margin + 4, y + 5.5, { align: 'center' });
 
-        // Header de consulta
+        // Header de consulta (Aumentado de 14 a 19 para la nueva línea)
+        const headerBoxHeight = 19;
         doc.setFillColor(230, 236, 255);
-        doc.roundedRect(margin + 10, y, contentW - 10, 14, 2, 2, 'F');
+        doc.roundedRect(margin + 10, y, contentW - 10, headerBoxHeight, 2, 2, 'F');
 
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);
         doc.setTextColor(...COLORS.navy);
         doc.text(`Consulta — ${dateStr}`, margin + 14, y + 6);
 
+        // Médico (Corrigiendo el Dr. Dr.)
         doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(...COLORS.accentDark);
-        doc.text(`Dr. ${record.doctor?.full_name || 'No especificado'}`, margin + 14, y + 11);
+        let doctorDisplayName = record.doctor?.full_name || 'No especificado';
+        if (doctorDisplayName.toLowerCase().startsWith('dr.')) {
+            doctorDisplayName = doctorDisplayName.substring(3).trim();
+        }
+        doc.text(`Dr. ${doctorDisplayName}`, margin + 14, y + 11);
+
         if (record.doctor?.specialty) {
             doc.setTextColor(...COLORS.midGray);
-            doc.text(`• ${record.doctor.specialty}`, margin + 14 + doc.getTextWidth(`Dr. ${record.doctor?.full_name || 'No especificado'} `), y + 11);
+            const drPrefixWidth = doc.getTextWidth(`Dr. ${doctorDisplayName} `);
+            doc.text(`• ${record.doctor.specialty}`, margin + 14 + drPrefixWidth, y + 11);
         }
 
-        y += 18;
+        // NUEVO: Motivo de consulta
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...COLORS.navy);
+        doc.text('MOTIVO:', margin + 14, y + 16);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...COLORS.midGray);
+        doc.text(record.consultation_type || 'Consulta General', margin + 28, y + 16);
+
+        y += headerBoxHeight + 4;
         checkY(15);
         // ── SIGNOS VITALES (Diseño Mejorado) ──
         if (record.temperature || record.systolic_pressure || record.pulse) {

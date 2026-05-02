@@ -32,10 +32,11 @@ CREATE POLICY "patients_insert_own_data" ON patients
 -- POLÍTICAS PARA MÉDICOS
 -- ====================================================================
 
--- Médicos pueden ver su propia información
-CREATE POLICY "doctors_select_own_data" ON doctors
+-- Médicos pueden ser vistos por cualquier usuario autenticado (Para búsqueda/citas)
+CREATE POLICY "doctors_select_authenticated" ON public.doctors
   FOR SELECT
-  USING (auth.uid() = user_id OR true); -- Todos pueden ver médicos (búsqueda pública)
+  TO authenticated
+  USING (true);
 
 -- Médicos pueden actualizar solo su propia información
 CREATE POLICY "doctors_update_own_data" ON doctors
@@ -233,8 +234,42 @@ CREATE POLICY "job_queue_service_role_only" ON job_queue
 
 -- Solo administradores pueden ver métricas
 -- (verificación de rol mediante JWT)
+-- Solo administradores pueden ver métricas
 CREATE POLICY "admin_metrics_admin_only" ON admin_metrics
   FOR ALL
+  TO authenticated
   USING (
-    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
   );
+
+-- ====================================================================
+-- 26 WARNINGS: RESTRICCIÓN DE VISIBILIDAD GRAPHQL Y STORAGE
+-- ====================================================================
+
+-- 1. Revocar acceso público (anon) a tablas para limpiar avisos de GraphQL
+-- Esto asegura que solo usuarios autenticados puedan interactuar con la DB
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM anon;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon;
+
+-- 2. Garantizar acceso a usuarios autenticados (necesario para que RLS funcione)
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+-- 3. Caso especial: doctors y patients necesitan ser visibles para registro/búsqueda inicial
+-- Pero RLS ya controla el contenido.
+
+-- 4. Storage: Corregir el Bucket de Avatars
+-- Nota: Esto asume que el bucket se llama 'avatars'
+DO $$
+BEGIN
+  -- Intentar corregir políticas de storage si existen
+  -- Nota: Las políticas de storage están en schema 'storage'
+  DELETE FROM storage.policies WHERE name = 'Public Access' AND bucket_id = 'avatars';
+  
+  INSERT INTO storage.policies (name, bucket_id, definition, operation)
+  VALUES ('Public Access', 'avatars', '(bucket_id = ''avatars''::text)', 'SELECT');
+EXCEPTION WHEN OTHERS THEN
+  -- Si el bucket no existe o no hay permisos, ignorar
+END $$;
