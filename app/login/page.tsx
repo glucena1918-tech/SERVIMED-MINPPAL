@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
@@ -10,7 +10,48 @@ export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isChecking, setIsChecking] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // AUTO-REDIRECCIÓN: Si ya hay sesión, validar ROL
+    useEffect(() => {
+        const checkActiveSession = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    const cleanEmail = user.email?.toLowerCase().trim();
+                    
+                    // Si es Admin o Secretaria, este NO es su portal. Los mandamos al suyo.
+                    if (cleanEmail === 'goldengrovessoul@gmail.com') {
+                        router.replace('/login/admin');
+                        return;
+                    }
+
+                    const { data: secData } = await (supabase as any)
+                        .from('secretaries')
+                        .select('*')
+                        .ilike('email', cleanEmail)
+                        .single();
+
+                    if (secData && secData.status === 'active') {
+                        router.replace('/login/admin');
+                        return;
+                    }
+
+                    // Si es Paciente o Médico, lo mandamos a su respectivo dashboard
+                    const userRole = user.app_metadata?.role || user.user_metadata?.role;
+                    if (userRole === 'doctor') router.replace('/doctor/dashboard');
+                    else router.replace('/patient/dashboard');
+                } else {
+                    setIsChecking(false);
+                }
+            } catch (err) {
+                console.error('Error in session check:', err);
+                setIsChecking(false);
+            }
+        };
+        checkActiveSession();
+    }, [router]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -18,72 +59,63 @@ export default function LoginPage() {
         setError(null);
 
         try {
-            console.log('🔐 Intentando login con:', email);
+            const cleanEmail = email.trim().toLowerCase();
+
+            // BLOQUEO PREVENTIVO: Si un admin/sec intenta loguearse aquí
+            if (cleanEmail === 'goldengrovessoul@gmail.com') {
+                setError('ACCESO DENEGADO: Use el portal de Acceso Administrativo.');
+                setLoading(false);
+                return;
+            }
 
             const { data, error: signInError } = await supabase.auth.signInWithPassword({
-                email,
+                email: cleanEmail,
                 password,
             });
 
-            if (signInError) {
-                console.error('❌ Error en signIn:', signInError);
-                throw signInError;
-            }
+            if (signInError) throw signInError;
 
             if (data.user) {
-                console.log('✅ Login exitoso. Usuario:', data.user.email);
-                console.log('📋 Metadatos:', {
-                    app_metadata: data.user.app_metadata,
-                    user_metadata: data.user.user_metadata
-                });
+                const userEmail = data.user.email?.toLowerCase().trim();
 
-                // Obtener el rol del usuario
-                const userRole = data.user.app_metadata?.role || data.user.user_metadata?.role;
-                console.log('👤 Rol detectado:', userRole);
+                // Verificar si es secretaria (para mandarla a su portal correcto)
+                const { data: secData } = await (supabase as any)
+                    .from('secretaries')
+                    .select('*')
+                    .ilike('email', userEmail)
+                    .single();
 
-                // Redirigir según el rol o parámetro 'next'
-                const searchParams = new URLSearchParams(window.location.search);
-                const nextPath = searchParams.get('next');
-                
-                let redirectPath = nextPath || '/patient/dashboard';
-
-                if (!nextPath) {
-                    switch (userRole) {
-                        case 'admin':
-                            redirectPath = '/admin/dashboard';
-                            break;
-                        case 'doctor':
-                            redirectPath = '/doctor/dashboard';
-                            break;
-                        case 'patient':
-                        default:
-                            redirectPath = '/patient/dashboard';
-                            break;
-                    }
+                if (secData && secData.status === 'active') {
+                    setError('ACCESO DENEGADO: Use el portal de Acceso Administrativo.');
+                    await supabase.auth.signOut();
+                    setLoading(false);
+                    return;
                 }
 
-
-                console.log('🚀 Redirigiendo a:', redirectPath);
-
-                // Usar location.replace para navegación sin historial
-                // Esto evita problemas de CSP y asegura navegación limpia
-                window.location.replace(redirectPath);
-
-                // No ejecutar setLoading(false) - la página va a recargar de todos modos
-                return;
+                // Si es un usuario válido para este portal (Paciente/Médico)
+                const userRole = data.user.app_metadata?.role || data.user.user_metadata?.role;
+                if (userRole === 'doctor') {
+                    router.replace('/doctor/dashboard');
+                } else {
+                    router.replace('/patient/dashboard');
+                }
             }
         } catch (err: any) {
-            console.error('💥 Error en handleLogin:', err);
-            setError(err.message || 'Error al iniciar sesión');
-            setLoading(false); // Solo set loading false si hay error
+            setError(err.message || 'Credenciales inválidas');
+            setLoading(false);
         }
     };
 
+    if (isChecking) {
+        return (
+            <div className="min-h-screen bg-[#020714] flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-accent"></div>
+            </div>
+        );
+    }
+
     return (
-        <div
-            className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
-            style={{ backgroundColor: '#020714' }}
-        >
+        <div className="min-h-screen bg-[#020714] flex items-center justify-center p-4 relative overflow-hidden">
             {/* Background Image */}
             <img
                 src="/images/bg-login.jpeg"
@@ -97,68 +129,43 @@ export default function LoginPage() {
                 style={{ background: 'linear-gradient(135deg, rgba(2,7,20,0.45) 0%, rgba(10,36,99,0.35) 100%)' }}
             />
 
-            <div className="relative z-10 w-full max-w-md">
-                {/* Logo y Título */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center gap-3 mb-4">
-                        <div className="w-14 h-14 overflow-hidden rounded-2xl border-2 border-accent/40 shadow-xl shadow-accent/20">
-                            <img
-                                src="/images/logo-minppal.png"
-                                alt="Logo"
-                                className="w-full h-full object-cover"
-                            />
-                        </div>
+            <div className="relative z-10 w-full max-w-md animate-fade-in">
+                <div className="text-center mb-10">
+                    <div className="inline-block p-4 rounded-3xl bg-white/5 border border-white/10 mb-6 shadow-2xl backdrop-blur-xl">
+                        <img src="/images/logo-minppal.png" alt="Logo" className="w-16 h-16 object-cover rounded-2xl" />
                     </div>
-                    <h1 className="text-2xl font-black text-white mb-1 tracking-tight leading-tight">
-                        Sistema de Salud <br /> Institucional <span className="text-white/70">MINPPAL</span>
-                    </h1>
-                    <p className="text-white/60 mt-3 text-sm">Inicia sesión en tu cuenta</p>
+                    <h1 className="text-4xl font-black text-white tracking-tighter mb-2">SSIMINPPAL <span className="text-accent">PACIENTES</span></h1>
+                    <p className="text-white/40 text-sm font-medium uppercase tracking-[0.3em]">Acceso a Consultas y Médicos</p>
                 </div>
 
-                {/* Formulario con Glasmorfismo */}
-                <div
-                    className="rounded-3xl p-8 border border-white/10 shadow-2xl"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}
-                >
+                <div className="bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl">
                     <form onSubmit={handleLogin} className="space-y-6">
                         {error && (
-                            <div className="bg-red-500/20 border border-red-400/30 text-red-300 px-4 py-3 rounded-xl text-sm backdrop-blur-sm">
+                            <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-2xl text-sm font-bold text-center animate-shake">
                                 {error}
                             </div>
                         )}
 
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-semibold text-white/70 mb-2 uppercase tracking-wider">
-                                Correo Electrónico
-                            </label>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4 text-left block">Correo Electrónico</label>
                             <input
-                                id="email"
                                 type="email"
                                 required
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-white/15 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:border-transparent transition"
-                                style={{ backgroundColor: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(8px)' }}
-                                onFocus={e => (e.target.style.boxShadow = '0 0 0 2px #06D6A0')}
-                                onBlur={e => (e.target.style.boxShadow = 'none')}
-                                placeholder="tu@email.com"
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder:text-white/10 focus:border-accent outline-none transition-all"
+                                placeholder="usuario@gmail.com"
                             />
                         </div>
 
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-semibold text-white/70 mb-2 uppercase tracking-wider">
-                                Contraseña
-                            </label>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest ml-4 text-left block">Contraseña</label>
                             <input
-                                id="password"
                                 type="password"
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-white/15 text-white placeholder-white/30 focus:outline-none transition"
-                                style={{ backgroundColor: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(8px)' }}
-                                onFocus={e => (e.target.style.boxShadow = '0 0 0 2px #06D6A0')}
-                                onBlur={e => (e.target.style.boxShadow = 'none')}
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder:text-white/10 focus:border-accent outline-none transition-all"
                                 placeholder="••••••••"
                             />
                         </div>
@@ -166,32 +173,29 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full text-white font-black py-4 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-sm hover:-translate-y-0.5"
-                            style={{ backgroundColor: '#06D6A0', boxShadow: '0 8px 30px rgba(6,214,160,0.35)' }}
+                            className="w-full bg-accent hover:bg-[#05c492] text-[#020714] font-black py-5 rounded-2xl shadow-xl shadow-accent/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
                         >
-                            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+                            {loading ? 'Accediendo...' : 'Ingresar'}
                         </button>
                     </form>
 
-                    <div className="mt-6 text-center space-y-3">
-                        <p className="text-sm text-white/50">
-                            ¿No tienes cuenta?{' '}
-                            <Link href="/register?role=patient" className="font-bold hover:underline" style={{ color: '#06D6A0' }}>
-                                Regístrate como Paciente
-                            </Link>
-                        </p>
-                        <p className="text-sm text-white/50">
-                            ¿Eres médico?{' '}
-                            <Link href="/register?role=doctor" className="font-bold hover:underline" style={{ color: '#06D6A0' }}>
-                                Regístrate como Médico
-                            </Link>
-                        </p>
-                        <Link href="/" className="block text-sm text-white/30 hover:text-white/60 transition-colors mt-2">
+                    <div className="mt-8 pt-8 border-t border-white/5 flex flex-col gap-4">
+                        <Link href="/register" className="w-full py-4 px-6 rounded-2xl bg-white/5 border border-white/10 text-white font-black text-xs uppercase tracking-widest text-center hover:bg-white/10 hover:border-accent/40 transition-all">
+                            ¿No tienes cuenta? <span className="text-accent">Regístrate</span>
+                        </Link>
+                        <Link href="/" className="text-white/20 hover:text-white text-[10px] font-black uppercase tracking-widest text-center transition-colors">
                             ← Volver al inicio
                         </Link>
                     </div>
                 </div>
             </div>
+            
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes fade-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+                .animate-fade-in { animation: fade-in 0.8s ease-out forwards; }
+                .animate-shake { animation: shake 0.4s ease-in-out; }
+            ` }} />
         </div>
     );
 }

@@ -197,7 +197,7 @@ export default function DoctorDashboard() {
         return (
             <div className="min-h-screen bg-[#020714] flex flex-col items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
-                <p className="mt-6 text-white/40 font-black uppercase tracking-[0.3em] text-[10px]">Iniciando Servimed...</p>
+                <p className="mt-6 text-white/40 font-black uppercase tracking-[0.3em] text-[10px]">Iniciando SSIMINPPAL...</p>
             </div>
         );
     }

@@ -1,11 +1,11 @@
-# 🏥 VISIÓN DEL PROYECTO - SERVIMED MINPPAL
+# 🏥 VISIÓN DEL PROYECTO - SISTEMA DE SALUD INSTITUCIONAL MINPPAL
 
-**Sistema Integral de Gestión de Servicios Médicos**
+**Gestión Integral de Servicios Médicos**
 
 ---
 
 ## 🎯 **OBJETIVO GENERAL**
-Desarrollar una plataforma Web robusta, segura y escalable para la gestión integral de los servicios médicos de **SERVIMED MINPPAL**. El sistema digitaliza el flujo completo de atención al paciente, desde la solicitud de citas hasta la generación de documentos médicos oficiales, centralizando la información clínica y optimizando la operatividad del personal médico.
+Desarrollar una plataforma Web robusta, segura y escalable para la gestión integral de los servicios médicos del **SISTEMA DE SALUD INSTITUCIONAL MINPPAL**. El sistema digitaliza el flujo completo de atención al paciente, desde la solicitud de citas hasta la generación de documentos médicos oficiales, centralizando la información clínica y optimizando la operatividad del personal médico.
 
 ---
 
@@ -77,4 +77,31 @@ El sistema está construido modularmente para permitir futuras expansiones:
 - **App Móvil:** API lista para ser consumida por una futura aplicación nativa.
 
 ---
-**SERVIMED MINPPAL** - *Tecnología al servicio de la salud.*
+
+## 🛠️ **NOTAS DE TRANSICIÓN: DESARROLLO A PRODUCCIÓN**
+
+### **Proceso de Entrega y Traspaso Administrativo**
+Para garantizar una transición segura y limpia al finalizar la fase de desarrollo, se seguirá el siguiente protocolo:
+
+1.  **Sanitización de Datos:**
+    *   Se realizará un `TRUNCATE` o limpieza total de las tablas de datos (`patients`, `appointments`, `medical_records`, `prescription_items`) para eliminar registros de prueba.
+    *   La estructura de la base de datos (Esquema, Tablas, Funciones) se mantendrá intacta.
+
+2.  **Migración de Control Administrativo (RBAC):**
+    *   Durante el desarrollo, el acceso administrativo está vinculado al correo de prueba del desarrollador principal.
+    *   En producción, el sistema utilizará un sistema de **Roles basado en Base de Datos**. El acceso se validará mediante una columna `role` en la tabla de perfiles, eliminando la dependencia de correos específicos en el código fuente.
+    *   Se designará una **Variable de Entorno** para el "Admin Maestro" inicial.
+
+3.  **Habilitación del Nuevo Administrador:**
+    *   El administrador institucional registrará su cuenta oficial.
+    *   Se le asignará el rol `admin` mediante consola por única vez.
+    *   A partir de ese momento, el Administrador tendrá autonomía total para crear usuarios del rol "Secretaría" y gestionar la plataforma sin intervención técnica externa.
+
+4.  **Ajuste de Políticas de Seguridad (RLS):**
+    *   Las políticas de Supabase se actualizarán para permitir el acceso total al rol `admin` de forma genérica, garantizando que el nuevo administrador tenga visibilidad sobre todos los KPIs e indicadores del sistema.
+
+---
+**SISTEMA DE SALUD INSTITUCIONAL MINPPAL** - *Tecnología al servicio de la salud.*
+
+> [!NOTE]
+> **PENDIENTE PARA PRODUCCIÓN:** Actualmente, la creación de nuevos usuarios (Médicos/Secretarías) desde el Dashboard de Administrador solo añade registros a las tablas de datos. Para el despliegue final, se debe implementar una **Edge Function** con el `service_role` de Supabase para automatizar la creación de la cuenta en `supabase.auth`, evitando el registro manual en el Dashboard de Supabase.

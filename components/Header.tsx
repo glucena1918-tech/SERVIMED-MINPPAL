@@ -1,50 +1,83 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
 
 export default function Header() {
     const pathname = usePathname();
-    const isSpecialtiesPage = pathname === '/specialties';
+    const router = useRouter();
+    const isDashboardPath = pathname.includes('/dashboard');
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        router.push('/');
+    };
 
     return (
-        <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b border-white/10"
-            style={{ backgroundColor: 'rgba(2,7,20,0.30)' }}>
-            <nav className="container mx-auto px-6 py-4 flex items-center justify-between">
-                <Link href="/" className="flex items-center space-x-4 group">
-                    <div className="relative w-14 h-14 overflow-hidden rounded-2xl border-2 border-accent/40 group-hover:border-accent transition-all duration-500 shadow-xl shadow-accent/20">
-                        <img
-                            src="/images/logo-minppal.png"
-                            alt="Logo Sistema de Salud Institucional MINPPAL"
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                    </div>
-                    <div className="flex flex-col -space-y-1">
-                        <span className="text-white font-black text-xl tracking-tight leading-none drop-shadow-md">
-                            Sistema de Salud <br />
-                            Institucional <span className="text-white/80">MINPPAL</span>
-                        </span>
-                    </div>
-                </Link>
-
-                <div className="flex items-center space-x-8">
-                    <nav className="hidden lg:flex space-x-8 text-xs font-bold text-white/60 uppercase tracking-widest">
-                        <Link 
-                            href={isSpecialtiesPage ? "/" : "/specialties"} 
-                            className="hover:text-accent transition-colors"
-                        >
-                            {isSpecialtiesPage ? "Inicio" : "Especialidades"}
-                        </Link>
-                        <Link href="/help" className="hover:text-accent transition-colors">Ayuda</Link>
-                    </nav>
-                    <div className="h-6 w-px bg-white/15 hidden lg:block" />
-                    <Link
-                        href="/login"
-                        className="group relative overflow-hidden bg-accent text-white px-8 py-3 rounded-2xl font-black text-sm tracking-widest uppercase shadow-xl shadow-accent/30 hover:-translate-y-0.5 hover:shadow-[0_0_30px_rgba(6,214,160,0.5)] transition-all duration-300 active:scale-95"
-                    >
-                        <span className="relative z-10">Acceder</span>
-                        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+        <header className="fixed top-0 left-0 right-0 z-50 px-6 py-8">
+            <nav className="container mx-auto flex items-center justify-between bg-white/[0.03] backdrop-blur-3xl border border-white/10 px-8 py-5 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+                {/* Logo Section */}
+                <div className="flex items-center gap-4 relative z-10">
+                    <Link href="/" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+                        <div className="w-14 h-14 overflow-hidden rounded-2xl border-2 border-accent/20 shadow-xl shadow-accent/10">
+                            <img src="/images/logo-minppal.png" alt="Logo" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="hidden md:block">
+                            <h1 className="text-white font-black text-xl tracking-tighter leading-none mb-1">
+                                SISTEMA DE SALUD
+                            </h1>
+                            <p className="text-accent font-bold text-xs tracking-widest uppercase opacity-80">
+                                Institucional MINPPAL
+                            </p>
+                        </div>
                     </Link>
+                </div>
+
+                {/* Right Side Actions */}
+                <div className="flex items-center gap-6 relative z-10">
+                    {!isDashboardPath && (
+                        <nav className="hidden lg:flex items-center gap-10">
+                            {['Especialidades', 'Ayuda'].map((item) => (
+                                <Link
+                                    key={item}
+                                    href={`#${item.toLowerCase()}`}
+                                    className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 hover:text-accent transition-all duration-300 hover:tracking-[0.4em]"
+                                >
+                                    {item}
+                                </Link>
+                            ))}
+                        </nav>
+                    )}
+                    
+                    {!isDashboardPath && <div className="h-6 w-px bg-white/15 hidden lg:block" />}
+                    
+                    {!isDashboardPath && (
+                        <>
+                            <Link
+                                href="/register"
+                                className="hidden sm:flex items-center px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-accent hover:text-[#020714] border border-accent/30 hover:bg-accent transition-all duration-300 bg-accent/5"
+                            >
+                                Crear Cuenta
+                            </Link>
+                            <Link
+                                href="/login/admin"
+                                className="hidden sm:flex items-center px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-red-400 hover:text-white border border-red-500/30 hover:bg-red-500 transition-all duration-300 bg-red-500/5"
+                            >
+                                <span className="mr-2">🛡️</span> Acceso Administrativo
+                            </Link>
+                        </>
+                    )}
+
+                    {isDashboardPath && (
+                        <button
+                            onClick={handleLogout}
+                            className="group relative overflow-hidden bg-red-500/20 border border-red-500/50 text-red-400 px-8 py-3 rounded-2xl font-black text-sm tracking-widest uppercase shadow-xl shadow-red-500/10 hover:bg-red-500 hover:text-white transition-all duration-300 active:scale-95"
+                        >
+                            Cerrar Sesión
+                        </button>
+                    )}
                 </div>
             </nav>
         </header>

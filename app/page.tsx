@@ -113,7 +113,7 @@ export default function HomePage() {
                     </p>
 
                     {/* CTA Buttons */}
-                    <div className="flex flex-col sm:flex-row gap-6 justify-center mb-40">
+                    <div className="flex flex-col sm:flex-row gap-6 justify-center mb-10">
                         <Link
                             href="/login"
                             className="group relative px-14 py-5 text-white rounded-3xl text-xl font-black overflow-hidden shadow-2xl transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_50px_rgba(28,38,236,0.5)]"
@@ -124,11 +124,17 @@ export default function HomePage() {
                         </Link>
                         <Link
                             href="/login"
-                            className="px-14 py-5 text-[#020714] border border-[#15F0EB]/20 rounded-3xl text-xl font-black backdrop-blur-2xl hover:-translate-y-2 hover:shadow-[0_0_50px_rgba(21,240,235,0.4)] transition-all duration-300 shadow-2xl"
+                            className="px-14 py-5 text-[#020714] border border-[#15F0EB]/20 rounded-3xl text-xl font-black backdrop-blur-2xl hover:-translate-y-2 hover:shadow-[0_0_50_rgba(21,240,235,0.4)] transition-all duration-300 shadow-2xl"
                             style={{ backgroundColor: '#15F0EB' }}
                         >
                             Soy Médico
                         </Link>
+                    </div>
+
+                    <div className="mb-40">
+                        <p className="text-white/40 text-sm font-black uppercase tracking-[0.3em]">
+                            ¿Eres nuevo en la plataforma? <Link href="/register" className="text-accent hover:text-white transition-colors underline underline-offset-8 decoration-accent/30">Crea tu cuenta aquí</Link>
+                        </p>
                     </div>
 
                     {/* Feature Cards */}
