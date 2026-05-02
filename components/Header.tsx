@@ -39,15 +39,18 @@ export default function Header() {
                 <div className="flex items-center gap-6 relative z-10">
                     {!isDashboardPath && (
                         <nav className="hidden lg:flex items-center gap-10">
-                            {['Especialidades', 'Ayuda'].map((item) => (
-                                <Link
-                                    key={item}
-                                    href={`#${item.toLowerCase()}`}
-                                    className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 hover:text-accent transition-all duration-300 hover:tracking-[0.4em]"
-                                >
-                                    {item}
-                                </Link>
-                            ))}
+                            <Link
+                                href="/specialties"
+                                className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 hover:text-accent transition-all duration-300 hover:tracking-[0.4em]"
+                            >
+                                Especialidades
+                            </Link>
+                            <Link
+                                href="/help"
+                                className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 hover:text-accent transition-all duration-300 hover:tracking-[0.4em]"
+                            >
+                                Ayuda
+                            </Link>
                         </nav>
                     )}
                     
