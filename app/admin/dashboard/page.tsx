@@ -133,7 +133,7 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
         setStatsLoading(true);
         try {
-            // 1. Cargar datos base
+            // 1. Cargar datos base de forma masiva
             const [
                 { data: appData },
                 { data: docData },
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
             ] = await Promise.all([
                 supabase.from('appointments').select('id, appointment_date, doctor_id, status, medical_record_id'),
                 supabase.from('doctors').select('*').order('created_at', { ascending: false }),
-                supabase.from('medical_records').select('id, diagnosis, doctor_id, created_at'),
+                supabase.from('medical_records').select('id, diagnosis, doctor_id, record_date, created_at'),
                 supabase.from('prescription_items').select('medicine_name, medical_record_id'),
                 supabase.from('patients').select('id, agency')
             ]);
@@ -154,18 +154,32 @@ export default function AdminDashboard() {
             setSpecialties(allSpecs);
 
             let filteredApps = (appData || []) as any[];
-            const allRecords = (recData || []) as any[];
+            let filteredRecords = (recData || []) as any[];
             const allMeds = (medData || []) as any[];
             const allPatients = (patData || []) as any[];
 
-            // 2. Aplicar Filtros a Citas
-            if (dateFrom) filteredApps = filteredApps.filter(a => a.appointment_date >= dateFrom);
-            if (dateTo) filteredApps = filteredApps.filter(a => a.appointment_date <= dateTo);
-            if (filterDoctor !== 'all') filteredApps = filteredApps.filter(a => a.doctor_id === filterDoctor);
-            if (filterStatus !== 'all') filteredApps = filteredApps.filter(a => a.status === filterStatus);
+            // 2. Aplicar Filtros Globales (Citas y Registros Médicos por separado para incluir walk-ins)
+            if (dateFrom) {
+                filteredApps = filteredApps.filter(a => a.appointment_date >= dateFrom);
+                filteredRecords = filteredRecords.filter(r => r.record_date >= dateFrom);
+            }
+            if (dateTo) {
+                filteredApps = filteredApps.filter(a => a.appointment_date <= dateTo);
+                filteredRecords = filteredRecords.filter(r => r.record_date <= dateTo);
+            }
+            if (filterDoctor !== 'all') {
+                filteredApps = filteredApps.filter(a => a.doctor_id === filterDoctor);
+                filteredRecords = filteredRecords.filter(r => r.doctor_id === filterDoctor);
+            }
             if (filterSpecialty !== 'all') {
                 const docIdsInSpec = allDoctors.filter(d => d.specialty === filterSpecialty).map(d => d.id);
                 filteredApps = filteredApps.filter(a => docIdsInSpec.includes(a.doctor_id));
+                filteredRecords = filteredRecords.filter(r => docIdsInSpec.includes(r.doctor_id));
+            }
+            
+            // Filtro de estado solo aplica a citas
+            if (filterStatus !== 'all') {
+                filteredApps = filteredApps.filter(a => a.status === filterStatus);
             }
 
             // 3. Procesar Totales
@@ -174,15 +188,14 @@ export default function AdminDashboard() {
             const todayStr = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
             const appsToday = filteredApps.filter(a => a.appointment_date === todayStr).length;
 
-            // 4. Filtrar Registros y Medicinas según citas filtradas
-            const filteredRecIds = filteredApps.map(a => (a as any).medical_record_id).filter(Boolean);
-            const filteredRecords = allRecords.filter(r => filteredRecIds.includes(r.id));
+            // 4. Filtrar Medicinas según registros filtrados (Independiente de si hay cita o no)
+            const filteredRecIds = filteredRecords.map(r => r.id);
             const filteredMeds = allMeds.filter(m => filteredRecIds.includes(m.medical_record_id));
 
             // 5. KPIs Recalculados
             const patientsByDoc = allDoctors.map(doc => ({
                 name: doc.full_name,
-                count: filteredApps.filter(a => a.doctor_id === doc.id).length
+                count: filteredRecords.filter(r => r.doctor_id === doc.id).length // Contar por registros atendidos real
             })).sort((a,b) => b.count - a.count);
 
             const medCounts: Record<string, number> = {};
@@ -199,7 +212,7 @@ export default function AdminDashboard() {
 
             const specCounts: Record<string, number> = {};
             allDoctors.forEach(doc => {
-                const count = filteredApps.filter(a => a.doctor_id === doc.id).length;
+                const count = filteredRecords.filter(r => r.doctor_id === doc.id).length;
                 specCounts[doc.specialty] = (specCounts[doc.specialty] || 0) + count;
             });
 
