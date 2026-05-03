@@ -23,7 +23,7 @@ export default function Header() {
 
     return (
         <header className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-6 py-4 md:py-8">
-            <nav className="container mx-auto flex items-center justify-between bg-[#020714]/40 backdrop-blur-3xl border border-white/10 px-4 md:px-8 py-3 md:py-5 rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl relative overflow-visible">
+            <nav className="container mx-auto flex items-center justify-between bg-[#020714]/60 backdrop-blur-3xl border border-white/10 px-4 md:px-8 py-3 md:py-5 rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl relative overflow-visible">
                 
                 {/* Logo Section */}
                 <div className="flex items-center gap-4 relative z-[110]">
@@ -75,7 +75,7 @@ export default function Header() {
                 {!isDashboardPath && (
                     <button 
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        className="lg:hidden relative z-[120] w-12 h-12 flex flex-col items-center justify-center gap-1.5 bg-white/5 rounded-2xl border border-white/10 active:scale-90 transition-all"
+                        className="lg:hidden relative z-[130] w-12 h-12 flex flex-col items-center justify-center gap-1.5 bg-accent/10 rounded-2xl border border-accent/30 active:scale-90 transition-all"
                     >
                         <span className={`w-6 h-0.5 bg-accent transition-all duration-300 ${isMenuOpen ? 'rotate-45 translate-y-2' : ''}`} />
                         <span className={`w-6 h-0.5 bg-accent transition-all duration-300 ${isMenuOpen ? 'opacity-0' : ''}`} />
@@ -83,36 +83,49 @@ export default function Header() {
                     </button>
                 )}
 
-                {/* Mobile Menu Overlay */}
-                <div className={`lg:hidden fixed inset-0 z-[115] bg-[#020714] transition-all duration-500 ${isMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}>
-                    <div className="flex flex-col h-full pt-32 px-8 gap-6">
-                        <p className="text-white/20 text-[10px] font-black uppercase tracking-[0.5em] mb-4">Navegación Principal</p>
+                {/* Mobile Menu Overlay - NOW OPAQUE AND CLEAN */}
+                <div className={`lg:hidden fixed inset-0 z-[125] bg-[#020714] transition-all duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                    <div className="flex flex-col h-full pt-32 pb-10 px-6 overflow-y-auto">
                         
-                        <Link href="/specialties" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-between group">
-                            <span className="text-2xl font-black text-white group-hover:text-accent transition-colors italic">Especialidades</span>
-                            <span className="text-accent text-2xl group-hover:translate-x-2 transition-transform">🩺</span>
-                        </Link>
-                        
-                        <Link href="/help" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-between group">
-                            <span className="text-2xl font-black text-white group-hover:text-accent transition-colors italic">Ayuda</span>
-                            <span className="text-accent text-2xl group-hover:translate-x-2 transition-transform">❓</span>
-                        </Link>
+                        <div className="mb-12">
+                            <p className="text-accent text-[10px] font-black uppercase tracking-[0.5em] mb-6 opacity-60">Navegación</p>
+                            
+                            <div className="flex flex-col gap-4">
+                                <Link href="/specialties" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-between p-6 rounded-3xl bg-white/5 border border-white/10 active:bg-white/10 transition-all">
+                                    <span className="text-xl font-bold text-white tracking-wider">Especialidades</span>
+                                    <span className="text-2xl">🩺</span>
+                                </Link>
+                                
+                                <Link href="/help" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-between p-6 rounded-3xl bg-white/5 border border-white/10 active:bg-white/10 transition-all">
+                                    <span className="text-xl font-bold text-white tracking-wider">Ayuda y Soporte</span>
+                                    <span className="text-2xl">❓</span>
+                                </Link>
+                            </div>
+                        </div>
 
-                        <div className="h-px bg-white/5 my-6" />
+                        <div className="mb-8">
+                            <p className="text-accent text-[10px] font-black uppercase tracking-[0.5em] mb-6 opacity-60">Acciones</p>
+                            
+                            <div className="flex flex-col gap-4">
+                                <Link href="/register" onClick={() => setIsMenuOpen(false)} className="w-full py-6 rounded-3xl bg-accent text-[#020714] text-center font-black text-lg uppercase tracking-widest shadow-[0_20px_40px_rgba(6,214,160,0.2)]">
+                                    Crear Cuenta
+                                </Link>
 
-                        <p className="text-white/20 text-[10px] font-black uppercase tracking-[0.5em] mb-4">Acceso Usuarios</p>
+                                <Link href="/login/admin" onClick={() => setIsMenuOpen(false)} className="w-full py-6 rounded-3xl bg-red-500/10 border border-red-500/20 text-red-400 text-center font-black text-sm uppercase tracking-widest mt-4">
+                                    🛡️ Acceso Administrativo
+                                </Link>
+                            </div>
+                        </div>
 
-                        <Link href="/register" onClick={() => setIsMenuOpen(false)} className="w-full py-6 rounded-3xl bg-accent text-[#020714] text-center font-black text-lg uppercase tracking-widest shadow-[0_20px_40px_rgba(6,214,160,0.2)]">
-                            Crear Cuenta
-                        </Link>
-
-                        <Link href="/login/admin" onClick={() => setIsMenuOpen(false)} className="w-full py-6 rounded-3xl bg-red-500/10 border border-red-500/20 text-red-400 text-center font-black text-lg uppercase tracking-widest">
-                            🛡️ Acceso Administrativo
-                        </Link>
-
-                        <div className="mt-auto pb-12 text-center">
-                            <img src="/images/logo-minppal.png" alt="Logo" className="w-12 h-12 mx-auto opacity-20 grayscale mb-4" />
-                            <p className="text-white/20 text-[8px] font-bold uppercase tracking-widest">Servimed Minppal © 2024</p>
+                        {/* Footer in menu */}
+                        <div className="mt-auto pt-10 text-center border-t border-white/5">
+                            <div className="flex justify-center gap-4 mb-6 opacity-40">
+                                <img src="/images/logo-minppal.png" alt="Minppal" className="h-8 grayscale" />
+                            </div>
+                            <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest">
+                                Servimed Minppal
+                            </p>
+                            <p className="text-white/10 text-[8px] mt-2">© 2024 Todos los derechos reservados</p>
                         </div>
                     </div>
                 </div>
