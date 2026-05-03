@@ -21,29 +21,34 @@ export default function Header() {
         setIsMenuOpen(false);
     }, [pathname]);
 
+    // Debug para consola
+    useEffect(() => {
+        console.log("Header Responsive Cargado - Menu Abierto:", isMenuOpen);
+    }, [isMenuOpen]);
+
     return (
-        <header className="fixed top-0 left-0 right-0 z-50 px-4 md:px-6 py-6 md:py-8">
-            <nav className="container mx-auto flex items-center justify-between bg-white/[0.03] backdrop-blur-3xl border border-white/10 px-4 md:px-8 py-4 md:py-5 rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+        <header className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-6 py-4 md:py-8">
+            <nav className="container mx-auto flex items-center justify-between bg-white/[0.05] backdrop-blur-3xl border border-white/10 px-4 md:px-8 py-3 md:py-5 rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl relative overflow-visible group">
                 
                 {/* Logo Section */}
-                <div className="flex items-center gap-4 relative z-10">
-                    <Link href="/" className="flex items-center gap-3 md:gap-4 hover:opacity-80 transition-opacity">
+                <div className="flex items-center gap-4 relative z-[110]">
+                    <Link href="/" className="flex items-center gap-2 md:gap-4 hover:opacity-80 transition-opacity">
                         <div className="w-10 h-10 md:w-14 md:h-14 overflow-hidden rounded-xl md:rounded-2xl border-2 border-accent/20 shadow-xl shadow-accent/10">
                             <img src="/images/logo-minppal.png" alt="Logo" className="w-full h-full object-cover" />
                         </div>
-                        <div>
-                            <h1 className="text-white font-black text-sm md:text-xl tracking-tighter leading-none mb-0.5 md:mb-1">
+                        <div className="flex flex-col">
+                            <h1 className="text-white font-black text-xs md:text-xl tracking-tighter leading-none mb-0.5 md:mb-1">
                                 SISTEMA DE SALUD
                             </h1>
-                            <p className="text-accent font-bold text-[8px] md:text-xs tracking-widest uppercase opacity-80">
+                            <p className="text-accent font-bold text-[7px] md:text-xs tracking-widest uppercase opacity-80">
                                 Institucional MINPPAL
                             </p>
                         </div>
                     </Link>
                 </div>
 
-                {/* Desktop Actions (Hidden on mobile) */}
-                <div className="hidden lg:flex items-center gap-6 relative z-10">
+                {/* Desktop Actions (Hidden on screens smaller than 1024px) */}
+                <div className="hidden lg:flex items-center gap-6 relative z-[110]">
                     {!isDashboardPath && (
                         <nav className="flex items-center gap-10">
                             <Link
@@ -90,11 +95,12 @@ export default function Header() {
                     )}
                 </div>
 
-                {/* Mobile Menu Toggle (Only on mobile) */}
+                {/* Mobile Menu Toggle (Visible ONLY on mobile/tablet) */}
                 {!isDashboardPath && (
                     <button 
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        className="lg:hidden relative z-50 w-10 h-10 flex flex-col items-center justify-center gap-1.5 bg-white/5 rounded-xl border border-white/10 active:scale-90 transition-transform"
+                        className="lg:hidden relative z-[120] w-10 h-10 flex flex-col items-center justify-center gap-1.5 bg-accent/10 rounded-xl border-2 border-accent/50 active:scale-90 transition-all"
+                        aria-label="Menu"
                     >
                         <span className={`w-5 h-0.5 bg-accent transition-all duration-300 ${isMenuOpen ? 'rotate-45 translate-y-2' : ''}`} />
                         <span className={`w-5 h-0.5 bg-accent transition-all duration-300 ${isMenuOpen ? 'opacity-0' : ''}`} />
@@ -103,30 +109,41 @@ export default function Header() {
                 )}
 
                 {/* Mobile Menu Overlay */}
-                <div className={`lg:hidden fixed inset-0 z-40 bg-[#020714]/95 backdrop-blur-2xl transition-all duration-500 ${isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                <div 
+                    className={`lg:hidden fixed inset-0 z-[115] bg-[#020714]/98 backdrop-blur-3xl transition-all duration-500 ease-in-out ${
+                        isMenuOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'
+                    }`}
+                >
                     <div className="flex flex-col items-center justify-center h-full gap-8 p-8">
                         <Link
                             href="/specialties"
-                            className="text-lg font-black uppercase tracking-[0.4em] text-white hover:text-accent transition-all"
+                            className="text-xl font-black uppercase tracking-[0.4em] text-white hover:text-accent transition-all"
+                            onClick={() => setIsMenuOpen(false)}
                         >
                             Especialidades
                         </Link>
                         <Link
                             href="/help"
-                            className="text-lg font-black uppercase tracking-[0.4em] text-white hover:text-accent transition-all"
+                            className="text-xl font-black uppercase tracking-[0.4em] text-white hover:text-accent transition-all"
+                            onClick={() => setIsMenuOpen(false)}
                         >
                             Ayuda
                         </Link>
-                        <div className="w-full max-w-[200px] h-px bg-white/10 my-2" />
+                        
+                        <div className="w-full max-w-[200px] h-px bg-white/10 my-4" />
+                        
                         <Link
                             href="/register"
-                            className="w-full max-w-[280px] text-center py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] bg-accent text-[#020714] shadow-lg shadow-accent/20"
+                            className="w-full max-w-[280px] text-center py-5 rounded-2xl text-sm font-black uppercase tracking-[0.2em] bg-accent text-[#020714] shadow-[0_0_30px_rgba(6,214,160,0.3)]"
+                            onClick={() => setIsMenuOpen(false)}
                         >
                             Crear Cuenta
                         </Link>
+                        
                         <Link
                             href="/login/admin"
-                            className="w-full max-w-[280px] text-center py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] bg-red-500/20 border border-red-500/50 text-red-400"
+                            className="w-full max-w-[280px] text-center py-5 rounded-2xl text-sm font-black uppercase tracking-[0.2em] bg-red-500/20 border border-red-500/50 text-red-400"
+                            onClick={() => setIsMenuOpen(false)}
                         >
                             🛡️ Acceso Administrativo
                         </Link>
@@ -136,7 +153,7 @@ export default function Header() {
                 {isDashboardPath && (
                      <button
                         onClick={handleLogout}
-                        className="lg:hidden relative z-10 bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-2 rounded-xl font-black text-[10px] tracking-widest uppercase"
+                        className="lg:hidden relative z-[110] bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-2 rounded-xl font-black text-[10px] tracking-widest uppercase"
                     >
                         Salir
                     </button>
