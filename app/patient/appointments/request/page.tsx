@@ -134,13 +134,13 @@ function RequestAppointmentForm() {
 
                 if (availError) throw availError;
 
-                // 3. Cargar citas ya ocupadas
+                // 3. Cargar citas ya ocupadas (Cualquiera que no esté cancelada bloquea el horario)
                 const { data: bookedData, error: bookedError } = await supabase
                     .from('appointments')
                     .select('appointment_time')
                     .eq('doctor_id', selectedDoctorId)
                     .eq('appointment_date', date)
-                    .in('status', ['pending', 'confirmed']);
+                    .neq('status', 'cancelled');
 
                 if (bookedError) throw bookedError;
                 setBookedTimes((bookedData as any[])?.map(a => a.appointment_time.substring(0, 5)) || []);
@@ -237,17 +237,35 @@ function RequestAppointmentForm() {
                     status: 'pending'
                 });
 
-            if (insertError) throw insertError;
+            if (insertError) {
+                // LOG DETALLADO - Ver el error exacto de Supabase
+                console.error('=== ERROR DETALLADO SUPABASE ===');
+                console.error('Código:', insertError.code);
+                console.error('Mensaje:', insertError.message);
+                console.error('Detalles:', insertError.details);
+                console.error('Hint:', insertError.hint);
+                console.error('Objeto completo:', JSON.stringify(insertError, null, 2));
+                throw insertError;
+            }
 
             setMessage({ type: 'success', text: '¡Solicitud de cita enviada con éxito!' });
-            // Limpiar formulario o redirigir
             setTimeout(() => {
                 router.push('/patient/dashboard');
             }, 2000);
 
         } catch (error: any) {
             console.error('Error solicitando cita:', error);
-            setMessage({ type: 'error', text: error.message || 'Error al solicitar la cita.' });
+            
+            // Mensaje explícito para evitar confusiones al paciente
+            if (error.code === '23505' || error.message?.includes('unique_doctor_appointment_slot')) {
+                setMessage({ 
+                    type: 'error', 
+                    text: '⚠️ Esta hora ya ha sido reservada por otro paciente. Por favor, seleccione un horario diferente o cambie de fecha.' 
+                });
+            } else {
+                const errorMsg = error.message || error.details || error.hint || 'Error al solicitar la cita.';
+                setMessage({ type: 'error', text: `Error: ${errorMsg}` });
+            }
         } finally {
             setSubmitting(false);
         }

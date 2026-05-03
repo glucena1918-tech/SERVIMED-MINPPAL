@@ -8,18 +8,18 @@
 -- 4. Agrega índices para mejorar el rendimiento (Warnings)
 -- ====================================================================
 
--- 1. Habilitar RLS en las tablas reportadas con error
+-- 1. HABILITAR RLS CON POLÍTICAS DE VISIBILIDAD CORRECTAS
 ALTER TABLE IF EXISTS public.appointments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.secretaries ENABLE ROW LEVEL SECURITY;
-
--- Asegurar que las demás tablas también tengan RLS (Buenas prácticas)
 ALTER TABLE IF EXISTS public.patients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.secretaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.doctors ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.medical_records ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.prescriptions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.admin_metrics ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.doctor_availability ENABLE ROW LEVEL SECURITY;
+
+-- Política de Visibilidad de Citas (Fundamental para el Filtro de Disponibilidad)
+-- Permite que todos los usuarios vean las horas ocupadas para evitar duplicados.
+DROP POLICY IF EXISTS "appointments_visibility_for_all" ON public.appointments;
+CREATE POLICY "appointments_visibility_for_all" ON public.appointments
+    FOR SELECT TO authenticated
+    USING (true);
 
 -- 2. Políticas para la tabla 'secretaries'
 -- Nota: Como esta tabla parece haber sido creada manualmente, definimos sus políticas aquí.
@@ -106,7 +106,32 @@ CREATE POLICY "secretaries_read_doctors" ON public.doctors
     FOR SELECT TO authenticated
     USING ((auth.jwt() -> 'app_metadata' ->> 'role') IN ('secretary', 'admin'));
 
--- 6. Verificación de Extensiones
+-- 6. Políticas de Acceso para el Rol de Paciente (RESTAURACIÓN DE ACCESO)
+-- Permitir que los pacientes gestionen sus propias citas y vean sus datos.
+
+-- Política para que el paciente inserte su propia cita
+DROP POLICY IF EXISTS "appointments_insert_as_patient" ON public.appointments;
+CREATE POLICY "appointments_insert_as_patient" ON public.appointments
+    FOR INSERT TO authenticated
+    WITH CHECK (EXISTS (SELECT 1 FROM public.patients WHERE public.patients.id = appointments.patient_id AND public.patients.user_id = auth.uid()));
+
+-- Política para que el paciente vea sus propias citas (Ya definida arriba como appointments_select_as_patient, pero aseguramos su existencia)
+-- DROP POLICY IF EXISTS "appointments_select_as_patient" ON public.appointments; (Ya está arriba)
+
+-- Política para que el paciente vea su propio perfil
+DROP POLICY IF EXISTS "patients_select_own" ON public.patients;
+CREATE POLICY "patients_select_own" ON public.patients
+    FOR SELECT TO authenticated
+    USING (user_id = auth.uid());
+
+-- Política para que el paciente actualice su propio perfil
+DROP POLICY IF EXISTS "patients_update_own" ON public.patients;
+CREATE POLICY "patients_update_own" ON public.patients
+    FOR UPDATE TO authenticated
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+-- 7. Verificación de Extensiones
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
