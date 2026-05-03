@@ -129,9 +129,13 @@ export default function Header() {
                     <div className="hidden lg:flex items-center gap-8">
                         {!isDashboardPath && (
                             <>
-                                <div className="flex items-center gap-10">
-                                    <Link href="/specialties" className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50 hover:text-accent transition-all">Especialidades</Link>
-                                    <Link href="/help" className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50 hover:text-accent transition-all">Ayuda</Link>
+                                <div className="flex items-center gap-4">
+                                    <Link href="/specialties" className="px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/70 border border-white/10 hover:border-accent hover:text-accent transition-all bg-white/5 backdrop-blur-md">
+                                        Especialidades
+                                    </Link>
+                                    <Link href="/help" className="px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/70 border border-white/10 hover:border-blue-400 hover:text-blue-400 transition-all bg-white/5 backdrop-blur-md">
+                                        Ayuda
+                                    </Link>
                                 </div>
                                 <div className="h-6 w-px bg-white/10" />
                                 <div className="flex items-center gap-4">
