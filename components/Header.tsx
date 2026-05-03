@@ -1,5 +1,14 @@
 'use client';
 
+/**
+ * SESSION LOG - 2024-05-03
+ * ------------------------
+ * 1. FIX: Mobile Scroll Lock - Removed overflow-hidden from Help/Register/Admin pages.
+ * 2. UI: Unified Header - Added borders to "Especialidades" and "Ayuda" for desktop consistency.
+ * 3. PERF: Optimized mobile tap response and removed role selection delay in Register.
+ * 4. NAV: Implemented v1.3.1 Grid layout for mobile menu to prevent overlapping.
+ */
+
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
