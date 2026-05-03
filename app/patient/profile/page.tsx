@@ -86,11 +86,12 @@ export default function PatientProfilePage() {
     useEffect(() => {
         const fetchProfile = async () => {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
                     router.push('/login');
                     return;
                 }
+                const user = session.user;
 
                 // Usamos any temporalmente en el query para evitar conflictos de tipado estricto con Supabase
                 const { data, error } = await supabase
@@ -149,8 +150,9 @@ export default function PatientProfilePage() {
         setMessage(null);
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('No usuario autenticado');
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('No usuario autenticado');
+            const user = session.user;
 
             // Preparar datos para update
             const fullName = `${formData.first_name} ${formData.last_name}`.trim();
@@ -179,7 +181,7 @@ export default function PatientProfilePage() {
                 updated_at: new Date().toISOString()
             };
 
-            const { error } = await supabase
+            const { error } = await (supabase as any)
                 .from('patients')
                 .update(updates)
                 .eq('user_id', user.id);

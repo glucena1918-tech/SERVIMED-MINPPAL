@@ -73,11 +73,13 @@ export default function PatientHistoryPage() {
     const [loading, setLoading] = useState(true);
     const [patient, setPatient] = useState<PatientData | null>(null);
     const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+    const [pathologies, setPathologies] = useState<any[]>([]);
     const [activeAppointment, setActiveAppointment] = useState<any>(null);
     const [showAddForm, setShowAddForm] = useState(false);
 
     // Estado del formulario (adaptado al formato oficial)
     const [formData, setFormData] = useState({
+        pathologyId: '',
         diagnosis: '',
         symptoms: '', // Motivo de Consulta
         consultationType: '',
@@ -101,6 +103,14 @@ export default function PatientHistoryPage() {
         reqOther: false,
         otherRequest: ''
     });
+
+    // Estado para búsqueda de patologías
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showPathologyList, setShowPathologyList] = useState(false);
+
+    const filteredPathologies = pathologies.filter(p => 
+        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const [showScrollTop, setShowScrollTop] = useState(false);
 
@@ -146,7 +156,18 @@ export default function PatientHistoryPage() {
 
     useEffect(() => {
         loadPatientData();
+        loadPathologies();
     }, [cedula]);
+
+    const loadPathologies = async () => {
+        const { data } = await supabase
+            .from('pathologies')
+            .select('*')
+            .eq('is_active', true)
+            .order('name', { ascending: true });
+        
+        if (data) setPathologies(data);
+    };
 
     const loadPatientData = async () => {
         try {
@@ -172,6 +193,7 @@ export default function PatientHistoryPage() {
                         cedula,
                         license_number
                     ),
+                    pathologies:pathology_id (name),
                     prescription_items (*)
                 `)
                 .eq('patient_id', (patientData as any).id)
@@ -269,7 +291,8 @@ export default function PatientHistoryPage() {
     const validateForm = () => {
         const errors: Record<string, string> = {};
 
-        if (!formData.diagnosis.trim()) errors.diagnosis = 'El diagnóstico es obligatorio.';
+        if (!formData.pathologyId) errors.pathologyId = 'Debe seleccionar una patología del catálogo.';
+        if (!formData.diagnosis.trim()) errors.diagnosis = 'El detalle del diagnóstico es obligatorio.';
         if (formData.diagnosis.length > 500) errors.diagnosis = 'El diagnóstico no puede exceder los 500 caracteres.';
         
         if (!formData.symptoms.trim()) errors.symptoms = 'El motivo de consulta es obligatorio.';
@@ -327,6 +350,7 @@ export default function PatientHistoryPage() {
                 .insert({
                     patient_id: (patient as any).id,
                     doctor_id: (doctor as any).id,
+                    pathology_id: formData.pathologyId,
                     record_date: new Date().toISOString().split('T')[0],
                     diagnosis: formData.diagnosis,
                     symptoms: formData.symptoms,
@@ -394,6 +418,7 @@ export default function PatientHistoryPage() {
 
             // Reset form
             setFormData({
+                pathologyId: '',
                 diagnosis: '',
                 symptoms: '',
                 consultationType: '',
@@ -743,22 +768,85 @@ export default function PatientHistoryPage() {
                                         </span>
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Diagnóstico Médico *</label>
+                                <div className="relative">
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Patología (Catálogo) *</label>
+                                    
+                                    {/* Buscador de Patología */}
+                                    <div className="relative">
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                placeholder="🔍 Buscar patología..."
+                                                value={searchTerm}
+                                                onFocus={() => setShowPathologyList(true)}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className={`w-full rounded-md border-gray-300 shadow-sm focus:border-accent focus:ring-accent py-2 pl-10 pr-3 border bg-white text-sm ${formErrors.pathologyId ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                                            />
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <span className="text-gray-400">🔍</span>
+                                            </div>
+                                            {formData.pathologyId && (
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFormData({...formData, pathologyId: '', diagnosis: ''});
+                                                        setSearchTerm('');
+                                                    }}
+                                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-500"
+                                                >
+                                                    ✕
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {showPathologyList && (
+                                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl max-h-60 overflow-y-auto">
+                                                {filteredPathologies.length > 0 ? (
+                                                    filteredPathologies.map(p => (
+                                                        <button
+                                                            key={p.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFormData({ 
+                                                                    ...formData, 
+                                                                    pathologyId: p.id,
+                                                                    diagnosis: p.name + ", " 
+                                                                });
+                                                                setSearchTerm(p.name);
+                                                                setShowPathologyList(false);
+                                                            }}
+                                                            className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 hover:text-blue-700 border-b border-gray-50 last:border-0 transition-colors"
+                                                        >
+                                                            {p.name}
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    <div className="px-4 py-3 text-sm text-gray-500 italic text-center">
+                                                        No se encontraron resultados
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {formErrors.pathologyId && <p className="text-xs text-red-600 mt-1 font-medium">{formErrors.pathologyId}</p>}
+                                    
+                                    {/* Backdrop para cerrar la lista al hacer click fuera */}
+                                    {showPathologyList && (
+                                        <div 
+                                            className="fixed inset-0 z-40" 
+                                            onClick={() => setShowPathologyList(false)}
+                                        />
+                                    )}
+
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mt-4 mb-1">Detalle / Evolución del Diagnóstico</label>
                                     <textarea
                                         rows={2}
                                         value={formData.diagnosis}
                                         onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
-                                        placeholder="Ej: Infección respiratoria aguda..."
-                                        className={`w-full rounded-md border-gray-300 shadow-sm focus:border-accent focus:ring-accent py-2 px-3 border ${formErrors.diagnosis ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                                        placeholder="Ej: Presenta mejoría, requiere seguimiento..."
+                                        className={`w-full rounded-md border-gray-300 shadow-sm focus:border-accent focus:ring-accent py-2 px-3 border text-sm ${formErrors.diagnosis ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                                     />
                                     {formErrors.diagnosis && <p className="text-xs text-red-600 mt-1 font-medium">{formErrors.diagnosis}</p>}
-                                    <div className="flex justify-between items-center mt-1">
-                                        <span className="text-[10px] text-gray-400">Max 500 caracteres</span>
-                                        <span className={`text-[10px] ${formData.diagnosis.length > 450 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
-                                            {formData.diagnosis.length}/500
-                                        </span>
-                                    </div>
                                 </div>
                             </div>
 

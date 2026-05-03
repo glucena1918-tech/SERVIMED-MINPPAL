@@ -47,6 +47,7 @@ export interface MedicalRecordData {
     lab_request?: string;
     xray_request?: string;
     other_request?: string;
+    pathologies?: { name: string };
     [key: string]: any;
 }
 
@@ -267,6 +268,16 @@ export const generateInformeMedico = (
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0);
+    
+    const pathologyName = record.pathologies?.name || '';
+    // Si hay patología oficial, la ponemos en negrita/mayúscula primero
+    if (pathologyName) {
+        doc.setFont('helvetica', 'bold');
+        doc.text(pathologyName.toUpperCase(), 20, y);
+        y += 6;
+        doc.setFont('helvetica', 'normal');
+    }
+
     const diagnosisText = doc.splitTextToSize(record.diagnosis || 'No especificado', 170);
     doc.text(diagnosisText, 20, y);
     y += diagnosisText.length * 5 + 10;
@@ -369,11 +380,14 @@ export const generateConstancia = (
     y = addDocumentTitle(doc, 'CONSTANCIA DE ASISTENCIA', record.record_date, y);
     y = addPatientBox(doc, patient, y);
 
-    doc.setFontSize(11);
-    doc.setTextColor(0);
     doc.setFont('helvetica', 'normal');
+    
+    const pathologyName = record.pathologies?.name || '';
+    const diagFinal = pathologyName 
+        ? `${pathologyName.toUpperCase()} - ${record.diagnosis}`
+        : record.diagnosis;
 
-    const bodyText1 = `Quien suscribe, Dr(a). ${doctor.full_name}, hace constar por medio de la presente que el paciente antes mencionado asistió a consulta médica en nuestras instalaciones el día ${formatDate(record.record_date)}, para evaluación y control de salud.\n\nDiagnóstico Clínico: ${record.diagnosis}`;
+    const bodyText1 = `Quien suscribe, Dr(a). ${doctor.full_name}, hace constar por medio de la presente que el paciente antes mencionado asistió a consulta médica en nuestras instalaciones el día ${formatDate(record.record_date)}, para evaluación y control de salud.\n\nDiagnóstico Clínico: ${diagFinal}`;
 
     const lines1 = doc.splitTextToSize(bodyText1, 160);
     doc.text(lines1, 25, y);

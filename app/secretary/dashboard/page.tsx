@@ -12,6 +12,7 @@ export default function SecretaryDashboard() {
     const [loading, setLoading] = useState(true);
     const [appointments, setAppointments] = useState<any[]>([]);
     const [doctors, setDoctors] = useState<any[]>([]);
+    const [notifications, setNotifications] = useState<any[]>([]);
     const [stats, setStats] = useState({
         today: 0,
         pending: 0,
@@ -22,7 +23,7 @@ export default function SecretaryDashboard() {
     const [filterDoctor, setFilterDoctor] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
-    const [timeFilter, setTimeFilter] = useState('today'); // DEFAULT TO TODAY
+    const [timeFilter, setTimeFilter] = useState('all'); // CAMBIADO A 'ALL' POR DEFECTO PARA VER TODO AL INICIO
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
 
@@ -57,12 +58,13 @@ export default function SecretaryDashboard() {
         doctor_id: '',
         appointment_date: '',
         appointment_time: '',
-        reason: ''
+        symptoms: ''
     });
 
     // Patient Search State
     const [patientSearch, setPatientSearch] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [selectedDoctorAvail, setSelectedDoctorAvail] = useState<any[]>([]);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -118,37 +120,60 @@ export default function SecretaryDashboard() {
         return () => clearTimeout(timer);
     }, [patientSearch]);
 
+    // Cargar disponibilidad del médico seleccionado
+    useEffect(() => {
+        const fetchDoctorAvail = async () => {
+            if (!formData.doctor_id) {
+                setSelectedDoctorAvail([]);
+                return;
+            }
+            try {
+                const { data, error } = await (supabase as any)
+                    .from('doctor_availability')
+                    .select('*')
+                    .eq('doctor_id', formData.doctor_id);
+                
+                if (error) throw error;
+                setSelectedDoctorAvail(data || []);
+            } catch (err) {
+                console.error('Error fetching doctor availability:', err);
+            }
+        };
+        fetchDoctorAvail();
+    }, [formData.doctor_id]);
+
     const loadData = async () => {
         setLoading(true);
         try {
             const [
                 { data: appData, error: appError },
                 { data: docData },
-                { count: patCount }
+                { count: patCount },
+                notifsRes
             ] = await Promise.all([
                 (supabase as any).from('appointments').select(`
                     *,
-                    patients (
-                        id,
-                        full_name,
-                        cedula,
-                        contact_phone,
-                        agency
-                    ),
-                    doctors (
-                        id,
-                        full_name,
-                        specialty
-                    )
+                    patients (id, full_name, cedula, contact_phone, agency),
+                    doctors (id, full_name, specialty)
                 `).order('appointment_date', { ascending: true }),
                 (supabase as any).from('doctors').select('id, full_name, specialty').eq('is_active', true),
-                (supabase as any).from('patients').select('*', { count: 'exact', head: true })
+                (supabase as any).from('patients').select('*', { count: 'exact', head: true }),
+                // CARGA DEL BUZÓN (En el mismo bloque)
+                (supabase as any).from('appointments').select(`
+                    *,
+                    patients (full_name, contact_phone, cedula),
+                    doctors (full_name, specialty)
+                `).neq('status', 'completed').order('appointment_date', { ascending: true })
             ]);
 
             if (appError) console.error('App Error:', appError);
+            if ((notifsRes as any).error) console.error('Notif Error:', (notifsRes as any).error);
 
             setAppointments(appData || []);
             setDoctors(docData || []);
+            setNotifications((notifsRes as any).data || []);
+
+            // Notificaciones ya cargadas arriba
             
             // Initial stats (global)
             updateStats(appData || [], patCount || 0);
@@ -256,10 +281,15 @@ export default function SecretaryDashboard() {
     const updateStats = (data: any[], totalPats: number) => {
         const todayStr = getVenezuelaToday();
         
+        // Contamos basándonos en la data real de la DB
+        const pendingCount = data.filter((a: any) => a.status === 'pending').length;
+        const todayCount = data.filter((a: any) => a.appointment_date === todayStr).length;
+        const completedCount = data.filter((a: any) => a.status === 'completed').length;
+
         setStats({
-            today: data.filter((a: any) => a.appointment_date === todayStr).length,
-            pending: data.filter((a: any) => a.status === 'pending').length,
-            completed: data.filter((a: any) => a.status === 'completed').length,
+            today: todayCount,
+            pending: pendingCount,
+            completed: completedCount,
             totalPatients: totalPats
         });
     };
@@ -282,7 +312,9 @@ export default function SecretaryDashboard() {
         }
 
         if (filterStatus !== 'all') {
-            matches = matches.filter(app => app.status === filterStatus);
+            matches = matches.filter(app => 
+                (app.status || '').toLowerCase() === filterStatus.toLowerCase()
+            );
         }
 
         // Time Filter
@@ -328,20 +360,26 @@ export default function SecretaryDashboard() {
             const { error } = await (supabase as any)
                 .from('appointments')
                 .insert([{
-                    ...formData,
-                    status: 'pending'
+                    patient_id: formData.patient_id,
+                    doctor_id: formData.doctor_id,
+                    appointment_date: formData.appointment_date,
+                    appointment_time: formData.appointment_time,
+                    reason: formData.symptoms,
+                    status: 'pending',
+                    patient_notified: false // SE AGREGA PARA QUE APAREZCA EN EL BUZÓN AL INSTANTE
                 }]);
 
             if (error) throw error;
 
             toast.success('Cita programada exitosamente');
             setIsAppModalOpen(false);
-            setFormData({ patient_id: '', doctor_id: '', appointment_date: '', appointment_time: '', reason: '' });
+            setFormData({ patient_id: '', doctor_id: '', appointment_date: '', appointment_time: '', symptoms: '' });
             setPatientSearch('');
             loadData();
-        } catch (error) {
-            console.error('Error:', error);
-            toast.error('Error al programar la cita');
+        } catch (error: any) {
+            console.error('Error Completo:', error);
+            const errorMsg = error.message || 'Error al programar la cita. Verifique que el horario esté disponible.';
+            toast.error(errorMsg);
         } finally {
             setIsSubmitting(false);
         }
@@ -351,7 +389,10 @@ export default function SecretaryDashboard() {
         try {
             const { error } = await (supabase as any)
                 .from('appointments')
-                .update({ status: newStatus })
+                .update({ 
+                    status: newStatus,
+                    patient_notified: false 
+                })
                 .eq('id', id);
 
             if (error) throw error;
@@ -359,6 +400,21 @@ export default function SecretaryDashboard() {
             loadData();
         } catch (error) {
             toast.error('Error al actualizar el estado');
+        }
+    };
+
+    const handleMarkNotified = async (id: string) => {
+        try {
+            const { error } = await (supabase as any)
+                .from('appointments')
+                .update({ patient_notified: true })
+                .eq('id', id);
+
+            if (error) throw error;
+            setNotifications(prev => prev.filter(n => n.id !== id));
+            toast.success('Paciente marcado como avisado');
+        } catch (error) {
+            toast.error('Error al actualizar notificación');
         }
     };
 
@@ -371,9 +427,11 @@ export default function SecretaryDashboard() {
     }
 
     return (
-        <div className="min-h-screen bg-[#020714] text-white selection:bg-accent/30 font-sans">
+        <div className="min-h-screen bg-[#020714] text-white selection:bg-accent/30 font-sans flex flex-col">
             <Toaster position="top-right" />
             <Header />
+
+            <div className="flex flex-1 overflow-hidden relative z-10">
 
             {/* Background Decor */}
             <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
@@ -388,7 +446,8 @@ export default function SecretaryDashboard() {
                 <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[100px] rounded-full"></div>
             </div>
 
-            <main className="relative z-10 pt-28 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+                <main className="flex-1 overflow-y-auto pt-52 pb-20 px-4 sm:px-6 lg:px-8 custom-scrollbar relative z-30">
+                    <div className="max-w-6xl mx-auto">
                 {/* Header Section */}
                 <div className="mb-12">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -397,19 +456,22 @@ export default function SecretaryDashboard() {
                                 <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse"></span>
                                 Control Administrativo • Gestión de Citas
                             </div>
-                            <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-2">
+                            <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-2 text-white opacity-100">
                                 Calendario <span className="text-accent italic">Maestro</span>
                             </h1>
-                            <p className="text-white/40 text-lg">Centralización y seguimiento de la atención médica del Sistema de Salud Institucional MINPPAL.</p>
+                            <p className="text-white/60 text-lg font-medium">Centralización y seguimiento de la atención médica del Sistema de Salud Institucional MINPPAL.</p>
                         </div>
                         
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 relative z-50">
                             <button 
                                 onClick={() => setIsAppModalOpen(true)}
-                                className="px-6 py-4 bg-accent text-white font-black rounded-2xl shadow-xl shadow-accent/20 hover:shadow-accent/40 hover:-translate-y-1 transition-all flex items-center gap-2 group"
+                                className="px-8 py-5 bg-[#10b981] text-white font-black rounded-[2rem] shadow-[0_20px_50px_rgba(16,185,129,0.4)] hover:shadow-[0_25px_60px_rgba(16,185,129,0.6)] hover:-translate-y-2 transition-all flex items-center gap-3 group border border-white/20"
                             >
-                                <span className="text-xl">📅</span>
-                                NUEVA CITA
+                                <span className="text-2xl">📅</span>
+                                <div className="text-left">
+                                    <div className="text-[10px] uppercase tracking-widest text-white/80">Nueva</div>
+                                    <div className="text-lg leading-tight">AGENDAR CITA</div>
+                                </div>
                             </button>
                             <button 
                                 onClick={() => setIsRegPatientModalOpen(true)}
@@ -716,7 +778,101 @@ export default function SecretaryDashboard() {
                         </table>
                     </div>
                 </div>
-            </main>
+                    </div>
+                </main>
+
+                {/* ── SIDEBAR DE NOTIFICACIONES (Buzón de Respuesta) ── */}
+                <aside className="w-[380px] pt-52 pb-20 border-l border-white/5 bg-[#020714]/40 backdrop-blur-3xl hidden lg:flex flex-col gap-8 px-6 overflow-y-auto custom-scrollbar relative z-30">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-1">Buzón de Respuesta</h2>
+                            <p className="text-xs font-bold text-white/80 tracking-tight">Avisos pendientes</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="px-3 py-1 bg-accent/20 text-accent rounded-full text-[10px] font-black border border-accent/20 tracking-tighter">
+                                {notifications.length} PACIENTES
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-5">
+                        {notifications.length === 0 ? (
+                            <div className="py-16 text-center bg-white/[0.02] border-2 border-dashed border-white/5 rounded-[2.5rem] flex flex-col items-center justify-center p-8">
+                                <div className="w-16 h-16 bg-accent/5 rounded-full flex items-center justify-center text-3xl mb-4 grayscale opacity-40">🎉</div>
+                                <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Todo al día</p>
+                                <p className="text-[9px] text-white/10 mt-2 text-center leading-relaxed font-bold">No hay avisos pendientes por gestionar en este momento.</p>
+                            </div>
+                        ) : (
+                            notifications.map(notif => (
+                                <div key={notif.id} className="group p-6 bg-[#0a1224]/80 border border-white/5 rounded-[2.5rem] hover:border-accent/30 transition-all duration-500 hover:shadow-2xl hover:shadow-accent/5 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-20 h-20 bg-accent/5 blur-2xl rounded-full -mr-10 -mt-10 group-hover:bg-accent/10 transition-all"></div>
+
+                                    <div className="flex justify-between items-start mb-5 relative z-10">
+                                        <div className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-2 ${
+                                            notif.status === 'confirmed' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 
+                                            notif.status === 'cancelled' || notif.status === 'rejected' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
+                                            'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                        }`}>
+                                            <span className={`w-1 h-1 rounded-full ${
+                                                notif.status === 'confirmed' ? 'bg-blue-400 animate-pulse' : 
+                                                notif.status === 'cancelled' || notif.status === 'rejected' ? 'bg-red-400' : 'bg-amber-400'
+                                            }`}></span>
+                                            {notif.status === 'confirmed' ? '✓ CONFIRMADA' : 
+                                             notif.status === 'cancelled' || notif.status === 'rejected' ? '✗ CANCELADA' : '⏳ PENDIENTE'}
+                                        </div>
+                                        <button 
+                                            onClick={() => handleMarkNotified(notif.id)}
+                                            className="w-8 h-8 rounded-2xl bg-accent/10 flex items-center justify-center text-accent hover:bg-accent hover:text-white transition-all duration-300 shadow-lg shadow-accent/5"
+                                            title="Marcar como avisado"
+                                        >
+                                            <span className="text-xs font-black">✓</span>
+                                        </button>
+                                    </div>
+
+                                    <div className="mb-4 relative z-10 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-sm font-black text-white/90 leading-tight group-hover:text-accent transition-colors">
+                                                {notif.patients?.full_name}
+                                            </h3>
+                                            <span className="text-[9px] font-black bg-white/5 px-2 py-0.5 rounded text-white/40 uppercase">
+                                                CI: {notif.patients?.cedula}
+                                            </span>
+                                        </div>
+                                        <p className="text-[10px] text-white/40 font-bold tracking-tight">
+                                            Cita para el <span className="text-white/60">{new Date(notif.appointment_date + 'T00:00:00').toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric', month: 'short' })}</span> a las <span className="text-white/60">{notif.appointment_time.substring(0, 5)}</span>
+                                        </p>
+                                        <p className="text-[9px] text-accent/60 font-black flex items-center gap-1 uppercase italic">
+                                            <span className="w-1 h-1 bg-accent/40 rounded-full"></span>
+                                            {notif.doctors?.full_name} ({notif.doctors?.specialty})
+                                        </p>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 relative z-10">
+                                        <a 
+                                            href={`tel:${notif.patients?.contact_phone}`}
+                                            className="flex-1 h-12 bg-accent/5 border border-white/5 rounded-2xl text-[11px] font-black text-accent hover:bg-accent hover:text-white transition-all duration-300 flex items-center justify-center gap-3 shadow-inner"
+                                        >
+                                            <span className="text-base">📞</span> 
+                                            <span className="tracking-tighter">LLAMAR: {notif.patients?.contact_phone || 'S/N'}</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    <div className="mt-auto pt-8 border-t border-white/5">
+                        <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5">
+                            <p className="text-[9px] text-white/30 font-bold leading-relaxed uppercase tracking-widest">
+                                Gestión de Respuesta
+                            </p>
+                            <p className="text-[10px] text-white/20 mt-2 leading-snug">
+                                Contacte al paciente para informarle la decisión del médico y marque como avisado para limpiar su agenda.
+                            </p>
+                        </div>
+                    </div>
+                </aside>
+            </div>
 
             {/* ── NEW APPOINTMENT MODAL ── */}
             {isAppModalOpen && (
@@ -792,6 +948,34 @@ export default function SecretaryDashboard() {
                                             </option>
                                         ))}
                                     </select>
+                                    
+                                    {/* Visualización de Horario del Médico */}
+                                    {selectedDoctorAvail.length > 0 && (
+                                        <div className="mt-4 p-4 bg-accent/5 border border-accent/20 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                                            <p className="text-[10px] font-black text-accent uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                <span>📅</span> Horario de Consulta Disponible:
+                                            </p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((dayName, idx) => {
+                                                    const dayAvail = selectedDoctorAvail.filter(a => a.day_of_week === idx);
+                                                    if (dayAvail.length === 0) return null;
+                                                    return (
+                                                        <div key={idx} className="bg-white/5 border border-white/10 px-3 py-2 rounded-xl">
+                                                            <div className="text-[10px] font-black text-white/80">{dayName}</div>
+                                                            <div className="flex flex-col gap-1 mt-1">
+                                                                {dayAvail.map((a, i) => (
+                                                                    <span key={i} className="text-[8px] font-black bg-accent/20 text-accent px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                                                                        {a.start_time.substring(0, 5)} - {a.end_time.substring(0, 5)}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <p className="text-[9px] text-white/30 mt-3 italic">* Por favor agende dentro de los turnos indicados para evitar conflictos.</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Date */}
@@ -816,14 +1000,14 @@ export default function SecretaryDashboard() {
                                     />
                                 </div>
 
-                                {/* Reason */}
+                                {/* Symptoms */}
                                 <div className="md:col-span-2">
                                     <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Motivo / Síntomas</label>
                                     <textarea 
                                         rows={3}
                                         placeholder="Describe brevemente el motivo de la consulta..."
-                                        value={formData.reason}
-                                        onChange={(e) => setFormData({...formData, reason: e.target.value})}
+                                        value={formData.symptoms}
+                                        onChange={(e) => setFormData({...formData, symptoms: e.target.value})}
                                         className="w-full px-6 py-4 bg-[#020714]/50 border border-white/10 rounded-2xl outline-none focus:border-accent/40 transition-all placeholder:text-white/20 resize-none"
                                     />
                                 </div>

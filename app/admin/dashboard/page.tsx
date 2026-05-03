@@ -27,7 +27,11 @@ export default function AdminDashboard() {
     const [statsLoading, setStatsLoading] = useState(true);
     const [adminData, setAdminData] = useState<any>(null);
     const [stats, setStats] = useState<AdminStats | null>(null);
-    const [activeTab, setActiveTab] = useState<'kpis' | 'users' | 'doctors'>('kpis');
+    const [activeTab, setActiveTab] = useState<'kpis' | 'users' | 'doctors' | 'pathologies'>('kpis');
+    const [pathologies, setPathologies] = useState<any[]>([]);
+    const [fetchingPaths, setFetchingPaths] = useState(false);
+    const [newPathName, setNewPathName] = useState('');
+    const [creatingPath, setCreatingPath] = useState(false);
     const [deletingSecId, setDeletingSecId] = useState<string | null>(null);
     const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
     
@@ -60,6 +64,7 @@ export default function AdminDashboard() {
                 setAdminData(user);
                 await fetchStats();
                 await fetchSecretaries();
+                await fetchPathologies();
             } catch (error) {
                 console.error('Error:', error);
             } finally {
@@ -79,6 +84,58 @@ export default function AdminDashboard() {
             console.error('Error fetch sec:', error);
         } finally {
             setFetchingSec(false);
+        }
+    };
+
+    const fetchPathologies = async () => {
+        setFetchingPaths(true);
+        try {
+            const { data } = await (supabase as any).from('pathologies').select('*').order('name', { ascending: true });
+            setPathologies(data || []);
+        } catch (error) {
+            console.error('Error fetch paths:', error);
+        } finally {
+            setFetchingPaths(false);
+        }
+    };
+
+    const handleCreatePathology = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newPathName.trim()) return;
+        setCreatingPath(true);
+        try {
+            const { error } = await (supabase as any).from('pathologies').insert({ name: newPathName.trim() });
+            if (error) throw error;
+            toast.success('Nueva patología agregada');
+            setNewPathName('');
+            fetchPathologies();
+        } catch (error: any) {
+            toast.error(error.message || 'Error al agregar');
+        } finally {
+            setCreatingPath(false);
+        }
+    };
+
+    const togglePathologyStatus = async (id: string, currentStatus: boolean) => {
+        try {
+            const { error } = await (supabase as any).from('pathologies').update({ is_active: !currentStatus }).eq('id', id);
+            if (error) throw error;
+            toast.success('Estado de patología actualizado');
+            fetchPathologies();
+        } catch (error) {
+            toast.error('Error al actualizar');
+        }
+    };
+
+    const deletePathology = async (id: string) => {
+        if (!confirm('¿Estás seguro de eliminar esta patología?')) return;
+        try {
+            const { error } = await (supabase as any).from('pathologies').delete().eq('id', id);
+            if (error) throw error;
+            toast.success('Patología eliminada');
+            fetchPathologies();
+        } catch (error) {
+            toast.error('No se puede eliminar: Tiene registros vinculados.');
         }
     };
 
@@ -139,13 +196,15 @@ export default function AdminDashboard() {
                 { data: docData },
                 { data: recData },
                 { data: medData },
-                { data: patData }
+                { data: patData },
+                { data: pathologiesCatalog }
             ] = await Promise.all([
                 supabase.from('appointments').select('id, appointment_date, doctor_id, status, medical_record_id'),
                 supabase.from('doctors').select('*').order('created_at', { ascending: false }),
-                supabase.from('medical_records').select('id, diagnosis, doctor_id, record_date, created_at'),
+                supabase.from('medical_records').select('id, diagnosis, doctor_id, record_date, created_at, pathology_id'),
                 supabase.from('prescription_items').select('medicine_name, medical_record_id'),
-                supabase.from('patients').select('id, agency')
+                supabase.from('patients').select('id, agency'),
+                (supabase as any).from('pathologies').select('id, name')
             ]);
 
             const allDoctors = (docData || []) as any[];
@@ -157,6 +216,7 @@ export default function AdminDashboard() {
             let filteredRecords = (recData || []) as any[];
             const allMeds = (medData || []) as any[];
             const allPatients = (patData || []) as any[];
+            const allPathologies = (pathologiesCatalog || []) as any[];
 
             // 2. Aplicar Filtros Globales (Citas y Registros Médicos por separado para incluir walk-ins)
             if (dateFrom) {
@@ -206,8 +266,15 @@ export default function AdminDashboard() {
 
             const diagCounts: Record<string, number> = {};
             filteredRecords.forEach(r => {
-                const diag = r.diagnosis?.trim().toUpperCase();
-                if (diag) diagCounts[diag] = (diagCounts[diag] || 0) + 1;
+                const pathId = (r as any).pathology_id;
+                // Buscar el nombre en el catálogo oficial cargado
+                const pathObj = allPathologies.find((p: any) => p.id === pathId);
+                
+                // Si existe en el catálogo, usamos el nombre oficial. 
+                // Si no tiene ID de patología, lo agrupamos como 'OTRAS / NO ESPECIFICADAS'
+                const name = pathObj?.name || 'OTRAS / NO ESPECIFICADAS';
+                
+                diagCounts[name] = (diagCounts[name] || 0) + 1;
             });
 
             const specCounts: Record<string, number> = {};
@@ -522,6 +589,12 @@ export default function AdminDashboard() {
                             className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'doctors' ? 'bg-accent text-white' : 'hover:bg-white/5 text-white/50'}`}
                         >
                             👨‍⚕️ Médicos
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('pathologies')}
+                            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'pathologies' ? 'bg-accent text-white' : 'hover:bg-white/5 text-white/50'}`}
+                        >
+                            🩺 Patologías
                         </button>
                     </div>
                 </div>
@@ -1037,6 +1110,92 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 )}
+
+                {/* Pathologies Tab */}
+                {activeTab === 'pathologies' && (
+                    <div className="space-y-8 animate-fade-in">
+                        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-10 rounded-[3rem]">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                                <div>
+                                    <h2 className="text-3xl font-black mb-2">Catálogo de <span className="text-accent">Patologías</span></h2>
+                                    <p className="text-white/40">Gestiona las opciones de diagnóstico disponibles para el personal médico.</p>
+                                </div>
+                                <form onSubmit={handleCreatePathology} className="flex gap-2">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Nueva patología..."
+                                        value={newPathName}
+                                        onChange={(e) => setNewPathName(e.target.value)}
+                                        className="bg-[#020714]/50 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-accent min-w-[300px] transition-all text-white"
+                                    />
+                                    <button 
+                                        type="submit"
+                                        disabled={creatingPath}
+                                        className="bg-accent text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-accent/20 hover:shadow-accent/40 disabled:opacity-50 transition-all flex items-center gap-2"
+                                    >
+                                        {creatingPath ? '...' : '✚ AGREGAR'}
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div className="overflow-hidden rounded-2xl border border-white/5">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="bg-white/5 border-b border-white/10">
+                                            <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-white/40">Nombre de Patología</th>
+                                            <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-white/40">Fecha Creación</th>
+                                            <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-white/40">Estado</th>
+                                            <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-white/40 text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {pathologies.map((path) => (
+                                            <tr key={path.id} className="hover:bg-white/[0.02] transition-colors group">
+                                                <td className="px-8 py-6">
+                                                    <span className="text-sm font-bold text-white/80 group-hover:text-accent transition-colors">{path.name}</span>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <span className="text-xs text-white/30">{new Date(path.created_at).toLocaleDateString()}</span>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${path.is_active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                        {path.is_active ? 'Activa' : 'Inactiva'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-6 text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => togglePathologyStatus(path.id, path.is_active)}
+                                                            className={`p-2.5 rounded-xl border transition-all ${path.is_active ? 'border-red-500/10 text-red-400 hover:bg-red-500/10' : 'border-green-500/10 text-green-400 hover:bg-green-500/10'}`}
+                                                            title={path.is_active ? "Desactivar" : "Activar"}
+                                                        >
+                                                            {path.is_active ? '🚫' : '✅'}
+                                                        </button>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => deletePathology(path.id)}
+                                                            className="p-2.5 rounded-xl border border-white/10 text-white/20 hover:text-red-500 hover:bg-red-500/10 transition-all"
+                                                            title="Eliminar"
+                                                        >
+                                                            🗑️
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {pathologies.length === 0 && (
+                                            <tr>
+                                                <td colSpan={4} className="py-20 text-center text-white/20 italic">No hay patologías registradas.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Edit Modal */}
                 {editingSec && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-[#020714]/80 backdrop-blur-xl animate-fade-in">

@@ -143,7 +143,7 @@ function RequestAppointmentForm() {
                     .in('status', ['pending', 'confirmed']);
 
                 if (bookedError) throw bookedError;
-                setBookedTimes(bookedData?.map(a => a.appointment_time.substring(0, 5)) || []);
+                setBookedTimes((bookedData as any[])?.map(a => a.appointment_time.substring(0, 5)) || []);
 
                 // 4. Generar slots basados en la disponibilidad (Regla 30 + 15)
                 if (!availData || availData.length === 0) {
@@ -152,7 +152,7 @@ function RequestAppointmentForm() {
                     const generatedSlots: string[] = [];
                     const buffer = 15; // minutos de respiro
 
-                    availData.forEach(shift => {
+                    (availData as any[]).forEach(shift => {
                         let current = new Date(`2000-01-01T${shift.start_time}`);
                         const end = new Date(`2000-01-01T${shift.end_time}`);
                         const slotDuration = shift.slot_duration || 30;
@@ -199,11 +199,12 @@ function RequestAppointmentForm() {
         setMessage(null);
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
                 router.push('/login');
                 return;
             }
+            const user = session.user;
 
             // 1. Obtener el ID interno del PACIENTE (basado en su user_id)
             const { data: patientData, error: patientError } = await supabase
@@ -224,10 +225,10 @@ function RequestAppointmentForm() {
             }
 
             // Insertar usando los IDs internos
-            const { error: insertError } = await supabase
+            const { error: insertError } = await (supabase as any)
                 .from('appointments')
                 .insert({
-                    patient_id: patientData.id, // ID interno
+                    patient_id: (patientData as any).id, // ID interno
                     doctor_id: selectedDoctorId, // ID interno (seleccionado en el form)
                     appointment_date: date,
                     appointment_time: time,

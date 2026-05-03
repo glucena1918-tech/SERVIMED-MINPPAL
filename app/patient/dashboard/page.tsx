@@ -15,8 +15,10 @@ export default function PatientDashboard() {
     useEffect(() => {
         const loadDashboardData = async () => {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) { router.push('/login'); return; }
+                // Usar getSession para evitar bloqueos de LockManager en navegadores
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) { router.push('/login'); return; }
+                const user = session.user;
 
                 // Cargar perfil
                 const { data: patient, error: pError } = await supabase
@@ -208,9 +210,9 @@ export default function PatientDashboard() {
                     </div>
                 </div>
 
-                {/* Alerta ficha incompleta - Validación inteligente */}
-                {(!patientData?.date_of_birth || !patientData?.blood_type || !patientData?.agency || 
-                  !patientData?.emergency_contact_name || (!patientData?.allergies_food && !patientData?.allergies_medicine)) && (
+                {/* Alerta ficha incompleta - Validación inteligente relaxada */}
+                {(!patientData?.date_of_birth || !patientData?.blood_type || 
+                  !patientData?.emergency_contact_phone || !patientData?.emergency_contact_name) && (
                     <div className="mb-10 relative overflow-hidden rounded-2xl shadow-xl border border-amber-200 animate-pulse-subtle"
                         style={{ background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)' }}>
                         

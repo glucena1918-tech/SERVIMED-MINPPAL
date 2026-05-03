@@ -83,10 +83,33 @@ CREATE POLICY "appointments_select_as_doctor" ON public.appointments
   FOR SELECT TO authenticated
   USING (EXISTS (SELECT 1 FROM doctors WHERE doctors.id = appointments.doctor_id AND doctors.user_id = auth.uid()));
 
--- 5. Verificación de Extensiones
+-- 5. Políticas de Acceso para el Rol de Secretaria (SOLUCIÓN TÉCNICA)
+-- Las secretarias necesitan acceso total para gestionar el flujo administrativo.
+
+-- Política para appointments (Citas)
+DROP POLICY IF EXISTS "secretaries_manage_appointments" ON public.appointments;
+CREATE POLICY "secretaries_manage_appointments" ON public.appointments
+    FOR ALL TO authenticated
+    USING ((auth.jwt() -> 'app_metadata' ->> 'role') IN ('secretary', 'admin'))
+    WITH CHECK ((auth.jwt() -> 'app_metadata' ->> 'role') IN ('secretary', 'admin'));
+
+-- Política para patients (Pacientes)
+DROP POLICY IF EXISTS "secretaries_manage_patients" ON public.patients;
+CREATE POLICY "secretaries_manage_patients" ON public.patients
+    FOR ALL TO authenticated
+    USING ((auth.jwt() -> 'app_metadata' ->> 'role') IN ('secretary', 'admin'))
+    WITH CHECK ((auth.jwt() -> 'app_metadata' ->> 'role') IN ('secretary', 'admin'));
+
+-- Política para doctors (Doctores - Solo lectura para asignar citas)
+DROP POLICY IF EXISTS "secretaries_read_doctors" ON public.doctors;
+CREATE POLICY "secretaries_read_doctors" ON public.doctors
+    FOR SELECT TO authenticated
+    USING ((auth.jwt() -> 'app_metadata' ->> 'role') IN ('secretary', 'admin'));
+
+-- 6. Verificación de Extensiones
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ====================================================================
--- FIN DE LA MIGRACIÓN
+-- FIN DE LA MIGRACIÓN ACTUALIZADA
 -- ====================================================================

@@ -159,7 +159,10 @@ export default function DoctorDashboard() {
         try {
             const { error } = await (supabase as any)
                 .from('appointments')
-                .update({ status: action })
+                .update({ 
+                    status: action,
+                    patient_notified: false 
+                })
                 .eq('id', id);
 
             if (error) throw error;
