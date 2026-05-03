@@ -1,11 +1,24 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 
 export default function RegisterPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[#020714] flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#06D6A0]"></div>
+            </div>
+        }>
+            <RegisterForm />
+        </Suspense>
+    );
+}
+
+function RegisterForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const roleParam = searchParams.get('role') || 'patient';

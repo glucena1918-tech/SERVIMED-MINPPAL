@@ -8,7 +8,7 @@ import Link from 'next/link';
 export default function PatientAppointmentsPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [appointments, setAppointments] = useState<any[]>([]);
+    const [appointmentList, setAppointmentList] = useState<any[]>([]);
 
     useEffect(() => {
         const loadAppointments = async () => {
@@ -27,7 +27,13 @@ export default function PatientAppointmentsPage() {
                     .eq('user_id', user.id)
                     .single();
 
-                if (patient) {
+                if (patientError) {
+                    console.error('Error obteniendo paciente:', patientError);
+                    setLoading(false);
+                    return;
+                }
+
+                if (patient && 'id' in patient) {
                     // Cargar citas
                     const tzOffset = (new Date()).getTimezoneOffset() * 60000;
                     const today = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
@@ -43,13 +49,13 @@ export default function PatientAppointmentsPage() {
                             created_at,
                             doctor:doctor_id (full_name, specialty, avatar_url)
                         `)
-                        .eq('patient_id', patient.id)
+                        .eq('patient_id', (patient as any).id)
                         .gte('appointment_date', today)
                         .order('appointment_date', { ascending: true })
                         .order('appointment_time', { ascending: true }); // Orden cronológico estricto
 
                     if (error) console.error('Error cargando citas:', error);
-                    setAppointments(apps || []);
+                    setAppointmentList(apps || []);
                 }
 
             } catch (error) {
@@ -84,15 +90,14 @@ export default function PatientAppointmentsPage() {
         if (!confirm('¿Está seguro que desea retirar esta solicitud?')) return;
 
         try {
-            const { error } = await supabase
-                .from('appointments')
+            const { error } = await (supabase.from('appointments') as any)
                 .update({ status: 'cancelled' })
                 .eq('id', appointmentId);
 
             if (error) throw error;
 
             // Actualizar estado local
-            setAppointments(prev => prev.map(app =>
+            setAppointmentList(prev => prev.map(app =>
                 app.id === appointmentId ? { ...app, status: 'cancelled' } : app
             ));
 
@@ -155,9 +160,9 @@ export default function PatientAppointmentsPage() {
 
             <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-                {appointments.length > 0 ? (
+                {appointmentList.length > 0 ? (
                     <div className="space-y-4">
-                        {appointments.map((app) => (
+                        {appointmentList.map((app) => (
                             <div key={app.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition">
                                 <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
 
