@@ -112,7 +112,7 @@ function RegisterForm() {
 
     return (
         <div
-            className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
+            className="min-h-screen flex items-center justify-center p-6 relative"
             style={{ backgroundColor: '#020714' }}
         >
             {/* Background Image */}
@@ -153,8 +153,11 @@ function RegisterForm() {
                 <div className="flex gap-3 mb-5">
                     <button
                         type="button"
-                        onClick={() => router.push('/register?role=patient')}
-                        className="flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all duration-300"
+                        onClick={() => {
+                            setRole('patient');
+                            router.push('/register?role=patient', { scroll: false });
+                        }}
+                        className="flex-1 py-4 px-4 rounded-xl font-bold text-sm transition-all duration-200 active:scale-95"
                         style={{
                             backgroundColor: role === 'patient' ? '#06D6A0' : 'rgba(255,255,255,0.08)',
                             color: role === 'patient' ? '#020714' : 'rgba(255,255,255,0.7)',
@@ -166,8 +169,11 @@ function RegisterForm() {
                     </button>
                     <button
                         type="button"
-                        onClick={() => router.push('/register?role=doctor')}
-                        className="flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all duration-300"
+                        onClick={() => {
+                            setRole('doctor');
+                            router.push('/register?role=doctor', { scroll: false });
+                        }}
+                        className="flex-1 py-4 px-4 rounded-xl font-bold text-sm transition-all duration-200 active:scale-95"
                         style={{
                             backgroundColor: role === 'doctor' ? '#06D6A0' : 'rgba(255,255,255,0.08)',
                             color: role === 'doctor' ? '#020714' : 'rgba(255,255,255,0.7)',

@@ -74,7 +74,7 @@ export default function UnifiedAdminLoginPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-[#050101]">
+        <div className="min-h-screen flex items-center justify-center p-6 relative bg-[#050101]">
             <Toaster position="top-center" />
             
             <div className="absolute inset-0 opacity-40">

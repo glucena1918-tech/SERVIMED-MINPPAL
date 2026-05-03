@@ -13,7 +13,7 @@ export default function HelpPage() {
     }, []);
 
     return (
-        <main className="min-h-screen bg-[#292358] selection:bg-accent/30 selection:text-white overflow-x-hidden relative">
+        <main className="min-h-screen bg-[#292358] selection:bg-accent/30 selection:text-white relative">
             {/* Background Image with Parallax & Overlay */}
             <div className="fixed inset-0 z-0">
                 <img 
