@@ -14,7 +14,7 @@ export default function Header() {
 
     const handleLogout = async () => {
         try {
-            await supabase.auth.signOut();
+            await supabase.signOut();
             router.push('/');
         } catch (error) {
             console.error('Error logging out:', error);
@@ -35,46 +35,51 @@ export default function Header() {
 
     return (
         <>
-            {/* Overlay Móvil - FUERA DEL NAV PARA EVITAR CLIPPING */}
+            {/* Overlay Móvil - REDISEÑO FINAL DE ESPACIADO */}
             <div 
                 className={`fixed inset-0 z-[999] bg-[#020714] transition-transform duration-500 ease-in-out ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'} lg:hidden`}
             >
                 <div className="flex flex-col h-full w-full p-6">
-                    {/* Botón Cerrar (X) dentro del overlay */}
-                    <div className="flex justify-end pt-4 pr-2">
+                    {/* Botón Cerrar */}
+                    <div className="flex justify-end pt-2">
                         <button 
                             onClick={() => setIsMenuOpen(false)}
-                            className="w-14 h-14 flex items-center justify-center bg-white/5 border border-white/10 rounded-2xl active:scale-90 transition-all"
+                            className="w-12 h-12 flex items-center justify-center bg-white/5 border border-white/10 rounded-2xl active:scale-90 transition-all"
                         >
-                            <span className="text-accent text-3xl font-light">✕</span>
+                            <span className="text-accent text-2xl font-light">✕</span>
                         </button>
                     </div>
 
-                    <div className="flex flex-col gap-10 mt-10 overflow-y-auto px-4">
-                        <div className="space-y-4">
-                            <p className="text-accent text-[10px] font-black uppercase tracking-[0.5em] mb-4 opacity-60 italic">Navegación</p>
-                            <Link href="/specialties" className="flex items-center justify-between p-6 rounded-3xl bg-white/5 border border-white/10">
-                                <span className="text-2xl font-black text-white italic">Especialidades</span>
-                                <span className="text-3xl">🩺</span>
+                    <div className="flex flex-col gap-8 mt-6 overflow-y-auto px-2 pb-10">
+                        {/* SECCIÓN NAVEGACIÓN */}
+                        <div className="space-y-3">
+                            <p className="text-accent text-[9px] font-black uppercase tracking-[0.4em] mb-4 opacity-50">Navegación</p>
+                            <Link href="/specialties" className="flex items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/10 active:bg-white/10">
+                                <span className="text-lg font-black text-white italic">Especialidades</span>
+                                <span className="text-2xl">🩺</span>
                             </Link>
-                            <Link href="/help" className="flex items-center justify-between p-6 rounded-3xl bg-white/5 border border-white/10">
-                                <span className="text-2xl font-black text-white italic">Ayuda</span>
-                                <span className="text-3xl">❓</span>
+                            <Link href="/help" className="flex items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/10 active:bg-white/10">
+                                <span className="text-lg font-black text-white italic">Ayuda</span>
+                                <span className="text-2xl">❓</span>
                             </Link>
                         </div>
 
+                        {/* SECCIÓN ACCIONES - FORZANDO COLUMNA PURA */}
                         <div className="space-y-4">
-                            <p className="text-accent text-[10px] font-black uppercase tracking-[0.5em] mb-4 opacity-60 italic">Acciones</p>
-                            <Link href="/register" className="w-full py-7 rounded-3xl bg-accent text-[#020714] text-center font-black text-xl uppercase tracking-widest shadow-[0_20px_50px_rgba(6,214,160,0.3)]">
+                            <p className="text-accent text-[9px] font-black uppercase tracking-[0.4em] mb-4 opacity-50">Acceso</p>
+                            
+                            <Link href="/register" className="block w-full py-5 rounded-2xl bg-accent text-[#020714] text-center font-black text-base uppercase tracking-widest shadow-[0_15px_30px_rgba(6,214,160,0.2)] active:scale-[0.98] transition-transform">
                                 Crear Cuenta
                             </Link>
-                            <Link href="/login/admin" className="w-full py-6 rounded-3xl bg-red-500/10 border border-red-500/20 text-red-400 text-center font-black text-sm uppercase tracking-[0.2em]">
+                            
+                            <Link href="/login/admin" className="block w-full py-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-center font-black text-[11px] uppercase tracking-[0.15em] active:scale-[0.98] transition-transform">
                                 🛡️ Acceso Administrativo
                             </Link>
                         </div>
 
-                        <div className="mt-auto py-10 border-t border-white/5 text-center">
-                            <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest italic">
+                        {/* FOOTER */}
+                        <div className="mt-auto py-6 border-t border-white/5 text-center">
+                            <p className="text-white/20 text-[9px] font-bold uppercase tracking-widest italic">
                                 Servimed Minppal © 2024
                             </p>
                         </div>
