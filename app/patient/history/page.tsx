@@ -382,11 +382,11 @@ const generatePDF = async (records: MedicalRecord[], patientName: string) => {
         doc.setFontSize(7);
         doc.setTextColor(...COLORS.midGray);
         
-        // Dirección centrada
+        // Dirección alineada a la izquierda para evitar colisión con la numeración
         const address = "Ministerio del Poder Popular para la Alimentación, MINPPAL. / Avenida Andrés Bello / Edificio Las Fundaciones / Caracas / RIF.: G-20012200-5";
-        doc.text(address, W / 2, 287, { align: 'center' });
+        doc.text(address, margin, 287);
         
-        // Numeración de página
+        // Numeración de página alineada a la derecha
         doc.setFont('helvetica', 'bold');
         doc.text(`Página ${p} de ${totalPages}`, W - margin, 287, { align: 'right' });
     }
