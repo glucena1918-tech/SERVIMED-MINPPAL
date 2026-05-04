@@ -368,17 +368,27 @@ const generatePDF = async (records: MedicalRecord[], patientName: string) => {
         }
     });
 
-    // ── FOOTER última página ──
+    // ── FOOTER institucional ──
     const totalPages = (doc as any).internal.getNumberOfPages();
     for (let p = 1; p <= totalPages; p++) {
         doc.setPage(p);
-        doc.setFillColor(240, 242, 248);
-        doc.rect(0, 285, W, 12, 'F');
+        
+        // Línea horizontal
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.2);
+        doc.line(margin, 280, W - margin, 280);
+
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7);
         doc.setTextColor(...COLORS.midGray);
-        doc.text('Sistema de Salud Institucional MINPPAL — Ministerio del Poder Popular para la Alimentación', margin, 291);
-        doc.text(`Pág. ${p} / ${totalPages}`, W - margin, 291, { align: 'right' });
+        
+        // Dirección centrada
+        const address = "Ministerio del Poder Popular para la Alimentación, MINPPAL. / Avenida Andrés Bello / Edificio Las Fundaciones / Caracas / RIF.: G-20012200-5";
+        doc.text(address, W / 2, 287, { align: 'center' });
+        
+        // Numeración de página
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Página ${p} de ${totalPages}`, W - margin, 287, { align: 'right' });
     }
 
     const fileName = `Historial_${patientName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;

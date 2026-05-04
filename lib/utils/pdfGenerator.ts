@@ -75,7 +75,33 @@ const COLORS = {
     BLUE_DARK: [0, 51, 102], // #003366
     GRAY_LIGHT: [250, 250, 250],
     GRAY_BORDER: [220, 220, 220],
-    BLUE_VITAL: [50, 100, 200] // Azul claro para labels de vitales
+    BLUE_VITAL: [50, 100, 200], // Azul claro para labels de vitales
+    GRAY_TEXT: [100, 100, 100]
+};
+
+const INSTITUTION_ADDRESS = "Ministerio del Poder Popular para la Alimentación, MINPPAL. / Avenida Andrés Bello / Edificio Las Fundaciones / Caracas / RIF.: G-20012200-5";
+
+/**
+ * Agrega el pie de página institucional (Línea horizontal + Dirección)
+ */
+const addGlobalFooter = (doc: jsPDF) => {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    const footerY = pageHeight - 15;
+
+    // Línea horizontal
+    doc.setDrawColor(COLORS.GRAY_BORDER[0], COLORS.GRAY_BORDER[1], COLORS.GRAY_BORDER[2]);
+    doc.setLineWidth(0.2);
+    doc.line(margin, footerY - 5, pageWidth - margin, footerY - 5);
+
+    // Dirección
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(COLORS.GRAY_TEXT[0], COLORS.GRAY_TEXT[1], COLORS.GRAY_TEXT[2]);
+    
+    // Dividir texto por las barras si es muy largo, o centrarlo
+    doc.text(INSTITUTION_ADDRESS, pageWidth / 2, footerY, { align: 'center' });
 };
 
 /**
@@ -286,6 +312,7 @@ export const generateInformeMedico = (
     // La imagen referencia NO muestra tratamiento. Así que NO lo pongo.
 
     addSignatureFooter(doc, doctor);
+    addGlobalFooter(doc);
     doc.save(`Informe_Medico_${patient.full_name}.pdf`);
 };
 
@@ -366,6 +393,7 @@ export const generateReceta = (
     doc.text('Este documento es válido exclusivamente para la dispensación de medicamentos en farmacia.', 20, footerY);
 
     addSignatureFooter(doc, doctor);
+    addGlobalFooter(doc);
     doc.save(`Recipe_${patient.full_name}.pdf`);
 };
 
@@ -404,6 +432,7 @@ export const generateConstancia = (
     doc.text('Constancia que se expide a petición de la parte interesada.', 25, y);
 
     addSignatureFooter(doc, doctor);
+    addGlobalFooter(doc);
     doc.save(`Constancia_${patient.full_name}.pdf`);
 };
 
@@ -492,5 +521,6 @@ export const generateOrdenExamen = (
     }
 
     addSignatureFooter(doc, doctor);
+    addGlobalFooter(doc);
     doc.save(`Orden_Examen_${patient.full_name}.pdf`);
 };
