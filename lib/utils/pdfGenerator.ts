@@ -79,7 +79,7 @@ const COLORS = {
     GRAY_TEXT: [100, 100, 100]
 };
 
-const INSTITUTION_ADDRESS = "Ministerio del Poder Popular para la Alimentación, MINPPAL. / Avenida Andrés Bello / Edificio Las Fundaciones / Caracas / RIF.: G-20012200-5";
+const INSTITUTION_ADDRESS = "Ministerio del Poder Popular para la Alimentación, MINPPAL. / Avenida Andrés Bello / Edificio Las Fundaciones / Caracas";
 
 /**
  * Agrega el pie de página institucional (Línea horizontal + Dirección)
@@ -100,8 +100,8 @@ const addGlobalFooter = (doc: jsPDF) => {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(COLORS.GRAY_TEXT[0], COLORS.GRAY_TEXT[1], COLORS.GRAY_TEXT[2]);
     
-    // Dividir texto por las barras si es muy largo, o centrarlo
-    doc.text(INSTITUTION_ADDRESS, pageWidth / 2, footerY, { align: 'center' });
+    // Dirección alineada a la izquierda
+    doc.text(INSTITUTION_ADDRESS, margin, footerY);
 };
 
 /**
