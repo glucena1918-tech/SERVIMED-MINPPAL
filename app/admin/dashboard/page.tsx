@@ -256,7 +256,9 @@ export default function AdminDashboard() {
             const patientsByDoc = allDoctors.map(doc => ({
                 name: doc.full_name,
                 count: filteredRecords.filter(r => r.doctor_id === doc.id).length // Contar por registros atendidos real
-            })).sort((a,b) => b.count - a.count);
+            }))
+            .filter(d => d.count > 0) // Solo médicos activos en el periodo/filtro
+            .sort((a,b) => b.count - a.count);
 
             const medCounts: Record<string, number> = {};
             filteredMeds.forEach(m => {
@@ -280,12 +282,24 @@ export default function AdminDashboard() {
             const specCounts: Record<string, number> = {};
             allDoctors.forEach(doc => {
                 const count = filteredRecords.filter(r => r.doctor_id === doc.id).length;
-                specCounts[doc.specialty] = (specCounts[doc.specialty] || 0) + count;
+                if (count > 0) {
+                    specCounts[doc.specialty] = (specCounts[doc.specialty] || 0) + count;
+                }
             });
 
-            // Conteo por Agencia (Ente)
+            // --- LÓGICA DINÁMICA DE PACIENTES ---
+            // 1. Obtener IDs de pacientes únicos en el set filtrado (Citas o Registros)
+            const filteredPatientIds = new Set([
+                ...filteredApps.map(a => a.patient_id).filter(id => !!id),
+                ...filteredRecords.map(r => r.patient_id).filter(id => !!id)
+            ]);
+            
+            // 2. Filtrar la lista de pacientes real basándose en esos IDs
+            const patientsInPeriod = allPatients.filter(p => filteredPatientIds.has(p.id));
+
+            // 3. Conteo por Agencia (Ente) solo para pacientes del periodo filtrado
             const agencyCounts: Record<string, number> = {};
-            allPatients.forEach(p => {
+            patientsInPeriod.forEach(p => {
                 const agency = p.agency || 'Otro';
                 agencyCounts[agency] = (agencyCounts[agency] || 0) + 1;
             });
@@ -296,7 +310,7 @@ export default function AdminDashboard() {
             setStats({
                 totalAppointments: totalApps,
                 appointmentsToday: appsToday,
-                totalPatients: allPatients.length,
+                totalPatients: patientsInPeriod.length,
                 totalGuests: totalGuests,
                 patientsByDoctor: patientsByDoc,
                 topMedicines: Object.entries(medCounts).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count).slice(0, 15),
