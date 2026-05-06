@@ -11,6 +11,7 @@ export default function PatientDashboard() {
     const [loading, setLoading] = useState(true);
     const [patientData, setPatientData] = useState<any>(null);
     const [nextAppointment, setNextAppointment] = useState<any>(null);
+    const [labCount, setLabCount] = useState(0);
 
     useEffect(() => {
         const loadDashboardData = async () => {
@@ -48,6 +49,16 @@ export default function PatientDashboard() {
                 if (!aError && appointment) {
                     setNextAppointment(appointment);
                 }
+
+                // Cargar conteo de resultados de laboratorio completados
+                const { count: labCount } = await supabase
+                    .from('laboratory_orders')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('patient_id', (patient as any).id)
+                    .eq('status', 'completado');
+                
+                // @ts-ignore
+                setLabCount(labCount || 0);
             } catch (error) {
                 console.error('Error al cargar datos del dashboard:', error);
             } finally {
@@ -331,6 +342,39 @@ export default function PatientDashboard() {
                             <span className="inline-flex items-center gap-1 text-sm font-bold transition-colors duration-200"
                                 style={{ color: '#7c3aed' }}>
                                 Ver historial
+                                <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Resultados de Laboratorio */}
+                    <div
+                        onClick={() => router.push('/patient/laboratory')}
+                        className="group relative bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 md:col-span-1"
+                        style={{ boxShadow: '0 4px 24px rgba(10,36,99,0.08)', border: '1px solid rgba(10,36,99,0.08)' }}
+                    >
+                        <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, #06D6A0, #3b82f6)' }} />
+                        <div className="p-6">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
+                                    style={{ background: 'linear-gradient(135deg, #dcfce7, #86efac)' }}>
+                                    <span className="text-2xl">🔬</span>
+                                </div>
+                                {labCount > 0 && (
+                                    <span className="bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-full animate-bounce shadow-lg shadow-red-500/20">
+                                        {labCount} NUEVOS
+                                    </span>
+                                )}
+                            </div>
+                            <h3 className="text-lg font-bold mb-1" style={{ color: '#0a2463' }}>Laboratorio</h3>
+                            <p className="text-sm text-gray-500 mb-5 leading-relaxed">
+                                Consulta tus resultados de exámenes de sangre, orina y heces.
+                            </p>
+                            <span className="inline-flex items-center gap-1 text-sm font-bold transition-colors duration-200"
+                                style={{ color: '#059669' }}>
+                                Ver resultados
                                 <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                                 </svg>

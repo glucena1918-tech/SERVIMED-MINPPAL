@@ -74,6 +74,7 @@ export default function PatientHistoryPage() {
     const [patient, setPatient] = useState<PatientData | null>(null);
     const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
     const [pathologies, setPathologies] = useState<any[]>([]);
+    const [labOrders, setLabOrders] = useState<any[]>([]);
     const [activeAppointment, setActiveAppointment] = useState<any>(null);
     const [showAddForm, setShowAddForm] = useState(false);
 
@@ -97,7 +98,7 @@ export default function PatientHistoryPage() {
         notes: '',
         // Ordenes de Examen
         reqLab: false,
-        labRequest: '',
+        labTests: [{ category: 'sangre' as 'sangre' | 'heces' | 'orina', testName: '', observations: '' }],
         reqXray: false,
         xrayRequest: '',
         reqOther: false,
@@ -203,6 +204,21 @@ export default function PatientHistoryPage() {
             if (recordsError) throw recordsError;
             setMedicalRecords(records || []);
 
+            // 4. Cargar órdenes de laboratorio
+            const { data: labOrders, error: labError } = await supabase
+                .from('laboratory_orders')
+                .select(`
+                    *,
+                    results:laboratory_results (*)
+                `)
+                .eq('patient_id', (patientData as any).id)
+                .order('created_at', { ascending: false });
+
+            if (!labError) {
+                // @ts-ignore - Guardar en estado (necesito añadir el estado)
+                setLabOrders(labOrders || []);
+            }
+
             // 3. Cargar cita activa
             let appointment = null;
             
@@ -280,6 +296,32 @@ export default function PatientHistoryPage() {
         }
         setPrescriptionItems([...prescriptionItems, newItem]);
         setNewItem({ medicine_name: '', dosage: '', quantity: '', duration: '', instructions: '' });
+    };
+
+    const handleRemovePrescriptionItem = (index: number) => {
+        setPrescriptionItems(prescriptionItems.filter((_, i) => i !== index));
+    };
+
+    // Funciones para manejar múltiples exámenes de laboratorio
+    const addLabTest = () => {
+        setFormData({
+            ...formData,
+            labTests: [...formData.labTests, { category: 'sangre', testName: '', observations: '' }]
+        });
+    };
+
+    const removeLabTest = (index: number) => {
+        if (formData.labTests.length === 1) return;
+        setFormData({
+            ...formData,
+            labTests: formData.labTests.filter((_, i) => i !== index)
+        });
+    };
+
+    const updateLabTest = (index: number, field: string, value: any) => {
+        const newLabTests = [...formData.labTests];
+        newLabTests[index] = { ...newLabTests[index], [field]: value };
+        setFormData({ ...formData, labTests: newLabTests });
     };
 
     const removePrescriptionItem = (index: number) => {
@@ -376,10 +418,38 @@ export default function PatientHistoryPage() {
                 } as any)
                 .select()
                 .single();
-
             if (error) throw error;
  
             const recordId = (newRecord as any)?.id;
+
+            // 🧪 INTEGRACIÓN CON MÓDULO DE LABORATORIO
+            // Insertar Órdenes de Laboratorio (Múltiples)
+            if (formData.reqLab && formData.labTests.length > 0) {
+                const labOrdersToInsert = formData.labTests
+                    .filter(test => test.testName.trim() !== '') // Solo tests con nombre
+                    .map(test => ({
+                        patient_id: (patient as any).id,
+                        doctor_id: (doctor as any).id,
+                        medical_record_id: recordId,
+                        category: test.category,
+                        test_name: test.testName,
+                        notes_from_doctor: test.observations,
+                        status: 'pendiente'
+                    }));
+
+                if (labOrdersToInsert.length > 0) {
+                    const { error: labOrderError } = await supabase
+                        .from('laboratory_orders')
+                        .insert(labOrdersToInsert as any);
+
+                    if (labOrderError) {
+                        console.error('Error creando órdenes de laboratorio:', labOrderError);
+                        toast.error('Se guardó el registro pero no se pudieron crear las órdenes de laboratorio.');
+                    } else {
+                        toast.success(`🔬 ${labOrdersToInsert.length} órdenes de laboratorio enviadas exitosamente.`);
+                    }
+                }
+            }
 
             // Insertar Items de Prescripción (KPIs)
             if (prescriptionItems.length > 0) {
@@ -433,7 +503,7 @@ export default function PatientHistoryPage() {
                 restDays: 0,
                 notes: '',
                 reqLab: false,
-                labRequest: '',
+                labTests: [{ category: 'sangre', testName: '', observations: '' }],
                 reqXray: false,
                 xrayRequest: '',
                 reqOther: false,
@@ -1080,17 +1150,66 @@ export default function PatientHistoryPage() {
                                                 className="mr-2 w-4 h-4 text-purple-600 focus:ring-purple-500 rounded"
                                             />
                                             <label htmlFor="reqLab" className="text-sm font-bold text-gray-700 cursor-pointer">
-                                                1. Laboratorio (Heces - Orina - Hematología)
+                                                1. Laboratorio (Envío Digital Directo)
                                             </label>
                                         </div>
                                         {formData.reqLab && (
-                                            <textarea
-                                                rows={2}
-                                                value={formData.labRequest}
-                                                onChange={(e) => setFormData({ ...formData, labRequest: e.target.value })}
-                                                placeholder="Detalles: Hematología completa, Orina, Heces, Perfil 20..."
-                                                className="w-full text-sm rounded border-gray-300 py-2 px-3 focus:border-purple-500 focus:ring-purple-500"
-                                            />
+                                            <div className="space-y-6 mt-4 ml-6 animate-in fade-in slide-in-from-left-2">
+                                                {formData.labTests.map((test, index) => (
+                                                    <div key={index} className="p-4 bg-purple-50/50 rounded-xl border border-purple-100 relative group">
+                                                        {formData.labTests.length > 1 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeLabTest(index)}
+                                                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-colors z-10"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        )}
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                                                            <div>
+                                                                <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-1 block">Categoría</label>
+                                                                <select
+                                                                    value={test.category}
+                                                                    onChange={(e) => updateLabTest(index, 'category', e.target.value)}
+                                                                    className="w-full text-sm rounded border-gray-300 py-2 px-3 focus:border-purple-500 focus:ring-purple-500 bg-white shadow-sm"
+                                                                >
+                                                                    <option value="sangre">Sangre (Hematología/Química)</option>
+                                                                    <option value="heces">Heces (Coproparasitario)</option>
+                                                                    <option value="orina">Orina (Citoquímico)</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-1 block">Nombre del Examen</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={test.testName}
+                                                                    onChange={(e) => updateLabTest(index, 'testName', e.target.value)}
+                                                                    placeholder="Ej: Perfil 20, Hematología Completa..."
+                                                                    className="w-full text-sm rounded border-gray-300 py-2 px-3 focus:border-purple-500 focus:ring-purple-500 bg-white shadow-sm"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-1 block">Observaciones para el Laboratorio</label>
+                                                            <textarea
+                                                                rows={2}
+                                                                value={test.observations}
+                                                                onChange={(e) => updateLabTest(index, 'observations', e.target.value)}
+                                                                placeholder="Detalles adicionales: Ayunas, toma de muestra específica..."
+                                                                className="w-full text-sm rounded border-gray-300 py-2 px-3 focus:border-purple-500 focus:ring-purple-500 bg-white shadow-sm"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    type="button"
+                                                    onClick={addLabTest}
+                                                    className="flex items-center gap-2 text-xs font-black text-purple-600 hover:text-purple-800 transition-all uppercase tracking-widest bg-purple-100/50 px-4 py-2 rounded-xl border border-dashed border-purple-300 w-full justify-center"
+                                                >
+                                                    ➕ Agregar otro examen de laboratorio
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
 
@@ -1187,6 +1306,83 @@ export default function PatientHistoryPage() {
                         </form>
                     </div>
                 )}
+
+                {/* Módulo de Laboratorio */}
+                <div className="mb-12">
+                    <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                        <span className="w-10 h-10 rounded-2xl bg-purple-100 flex items-center justify-center mr-3 text-lg">🔬</span>
+                        Resultados de Laboratorio
+                        {labOrders.filter(o => o.status === 'completado').length > 0 && (
+                            <span className="ml-3 text-[10px] font-black text-white bg-accent px-2 py-1 rounded-full uppercase tracking-widest animate-pulse">
+                                {labOrders.filter(o => o.status === 'completado').length} Nuevos
+                            </span>
+                        )}
+                    </h3>
+
+                    {labOrders.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {labOrders.map((order) => (
+                                <div key={order.id} className={`bg-white/70 backdrop-blur-sm rounded-2xl border p-5 shadow-sm transition-all hover:shadow-md ${
+                                    order.status === 'completado' ? 'border-accent/30 bg-accent/5' : 'border-gray-200'
+                                }`}>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${
+                                                order.category === 'sangre' ? 'bg-red-50 text-red-500' : 
+                                                order.category === 'orina' ? 'bg-yellow-50 text-yellow-500' : 
+                                                'bg-amber-50 text-amber-700'
+                                            }`}>
+                                                {order.category === 'sangre' ? '🩸' : order.category === 'orina' ? '🧪' : '💩'}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-gray-900 text-sm">{order.test_name}</h4>
+                                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{order.category}</p>
+                                            </div>
+                                        </div>
+                                        <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
+                                            order.status === 'pendiente' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
+                                            order.status === 'completado' ? 'bg-accent/10 text-accent border-accent/20' :
+                                            'bg-blue-50 text-blue-600 border-blue-200'
+                                        }`}>
+                                            {order.status}
+                                        </span>
+                                    </div>
+
+                                    {order.status === 'completado' && order.results && (
+                                        <div className="space-y-3">
+                                            <div className="p-3 bg-white/50 rounded-xl border border-gray-100 text-xs text-gray-600">
+                                                <p className="font-bold text-gray-800 mb-1">Resumen de Hallazgos:</p>
+                                                <p className="line-clamp-2 italic">
+                                                    {order.results[0]?.observations || 'Sin observaciones adicionales.'}
+                                                </p>
+                                            </div>
+                                            <button 
+                                                onClick={() => {
+                                                    // Aquí se abriría un modal o se generaría el PDF del resultado
+                                                    toast.success('Abriendo reporte de resultados...');
+                                                }}
+                                                className="w-full py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-gray-800 transition-all"
+                                            >
+                                                Ver Resultados Detallados
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center">
+                                        <span className="text-[9px] text-gray-400 font-medium">Solicitado el {new Date(order.created_at).toLocaleDateString()}</span>
+                                        {order.status === 'pendiente' && (
+                                            <span className="text-[9px] text-yellow-600 font-bold italic">En espera de toma de muestra</span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-3xl p-10 text-center">
+                            <p className="text-gray-400 font-black text-xs uppercase tracking-widest">No hay órdenes de laboratorio registradas</p>
+                        </div>
+                    )}
+                </div>
 
                 {/* Historial Médico */}
                 <div>

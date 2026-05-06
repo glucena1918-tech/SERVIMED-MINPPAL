@@ -27,7 +27,7 @@ export default function AdminDashboard() {
     const [statsLoading, setStatsLoading] = useState(true);
     const [adminData, setAdminData] = useState<any>(null);
     const [stats, setStats] = useState<AdminStats | null>(null);
-    const [activeTab, setActiveTab] = useState<'kpis' | 'users' | 'doctors' | 'pathologies'>('kpis');
+    const [activeTab, setActiveTab] = useState<'kpis' | 'users' | 'doctors' | 'pathologies' | 'laboratory'>('kpis');
     const [pathologies, setPathologies] = useState<any[]>([]);
     const [fetchingPaths, setFetchingPaths] = useState(false);
     const [newPathName, setNewPathName] = useState('');
@@ -52,6 +52,16 @@ export default function AdminDashboard() {
     const [creatingSec, setCreatingSec] = useState(false);
     const [secretariesList, setSecretariesList] = useState<any[]>([]);
     const [fetchingSec, setFetchingSec] = useState(false);
+    // Formulario para crear laboratorio
+    const [labCedula, setLabCedula] = useState('');
+    const [labEmail, setLabEmail] = useState('');
+    const [labName, setLabName] = useState('');
+    const [labPass, setLabPass] = useState('');
+    const [labLicense, setLabLicense] = useState('');
+    const [creatingLab, setCreatingLab] = useState(false);
+    const [laboratoryList, setLaboratoryList] = useState<any[]>([]);
+    const [fetchingLab, setFetchingLab] = useState(false);
+    const [deletingLabId, setDeletingLabId] = useState<string | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
@@ -64,6 +74,7 @@ export default function AdminDashboard() {
                 setAdminData(user);
                 await fetchStats();
                 await fetchSecretaries();
+                await fetchLaboratorySpecialists();
                 await fetchPathologies();
             } catch (error) {
                 console.error('Error:', error);
@@ -84,6 +95,17 @@ export default function AdminDashboard() {
             console.error('Error fetch sec:', error);
         } finally {
             setFetchingSec(false);
+        }
+    };
+    const fetchLaboratorySpecialists = async () => {
+        setFetchingLab(true);
+        try {
+            const { data } = await (supabase as any).from('laboratories').select('*').order('created_at', { ascending: false });
+            setLaboratoryList(data || []);
+        } catch (error) {
+            console.error('Error fetch lab:', error);
+        } finally {
+            setFetchingLab(false);
         }
     };
 
@@ -184,6 +206,56 @@ export default function AdminDashboard() {
             toast.error(error.message || 'Error al crear la cuenta');
         } finally {
             setCreatingSec(false);
+        }
+    };
+    const handleCreateLaboratorySpecialist = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setCreatingLab(true);
+        const cleanCedula = labCedula.trim();
+        const syntheticEmail = `${cleanCedula}@servimed.com`;
+
+        try {
+            // 1. Intentar crear el usuario en Auth (puede que ya exista si falló antes)
+            const { error: authError } = await supabase.auth.signUp({
+                email: syntheticEmail,
+                password: labPass,
+                options: {
+                    data: {
+                        full_name: labName,
+                        role: 'laboratory',
+                        cedula: cleanCedula
+                    }
+                }
+            });
+
+            // Si el error es que el usuario ya existe, NO abortamos —
+            // puede ser un reintento tras fallo parcial de RLS.
+            // Cualquier otro error sí aborta.
+            if (authError && !authError.message.toLowerCase().includes('already registered')) {
+                throw authError;
+            }
+
+            // 2. Insertar en la tabla laboratories (upsert para evitar duplicados)
+            const { error: dbError } = await (supabase as any).from('laboratories').upsert({
+                full_name: labName,
+                email: syntheticEmail,
+                license_number: labLicense,
+                is_active: true
+            }, { onConflict: 'email' });
+
+            if (dbError) throw dbError;
+
+            toast.success('✅ Especialista de Laboratorio registrado exitosamente.');
+            setLabCedula('');
+            setLabEmail('');
+            setLabName('');
+            setLabPass('');
+            setLabLicense('');
+            fetchLaboratorySpecialists();
+        } catch (error: any) {
+            toast.error(error.message || 'Error al crear la cuenta');
+        } finally {
+            setCreatingLab(false);
         }
     };
 
@@ -609,6 +681,12 @@ export default function AdminDashboard() {
                             className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'pathologies' ? 'bg-accent text-white' : 'hover:bg-white/5 text-white/50'}`}
                         >
                             🩺 Patologías
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('laboratory')}
+                            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'laboratory' ? 'bg-accent text-white' : 'hover:bg-white/5 text-white/50'}`}
+                        >
+                            🔬 Laboratorio
                         </button>
                     </div>
                 </div>
@@ -1201,6 +1279,195 @@ export default function AdminDashboard() {
                                         {pathologies.length === 0 && (
                                             <tr>
                                                 <td colSpan={4} className="py-20 text-center text-white/20 italic">No hay patologías registradas.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Tab: Laboratory Specialists */}
+                {activeTab === 'laboratory' && (
+                    <div className="space-y-12 animate-fade-in">
+                        {/* Formulario de Creación */}
+                        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[3rem] p-12 shadow-2xl relative overflow-hidden max-w-4xl mx-auto">
+                            <div className="absolute top-0 right-0 p-8 opacity-10 text-8xl">🔬</div>
+                            
+                            <h2 className="text-3xl font-black mb-2">Nuevo <span className="text-accent">Especialista de Laboratorio</span></h2>
+                            <p className="text-white/40 mb-10 text-lg">Registra al personal de bioanálisis para la gestión de exámenes.</p>
+                            
+                            <form onSubmit={handleCreateLaboratorySpecialist} className="space-y-8 relative z-10">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-4">Nombre Completo</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={labName}
+                                            onChange={e => setLabName(e.target.value)}
+                                            placeholder="Ej: Lic. Carlos Pérez"
+                                            className="w-full px-6 py-4 rounded-2xl bg-[#020714]/50 border border-white/10 focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-white placeholder:text-white/20"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-4">Cédula</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={labCedula}
+                                            onChange={e => setLabCedula(e.target.value.replace(/\D/g, ''))}
+                                            placeholder="Solo números"
+                                            className="w-full px-6 py-4 rounded-2xl bg-[#020714]/50 border border-white/10 focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-white placeholder:text-white/20"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-4">Número de Licencia / M.P.P.S</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={labLicense}
+                                            onChange={e => setLabLicense(e.target.value)}
+                                            placeholder="Ej: BIO-12345"
+                                            className="w-full px-6 py-4 rounded-2xl bg-[#020714]/50 border border-white/10 focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-white placeholder:text-white/20"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-4">PIN de Acceso (6 dígitos)</label>
+                                        <input 
+                                            type="password" 
+                                            required
+                                            maxLength={6}
+                                            value={labPass}
+                                            onChange={e => setLabPass(e.target.value.replace(/\D/g, ''))}
+                                            placeholder="••••••"
+                                            className="w-full px-6 py-4 rounded-2xl bg-[#020714]/50 border border-white/10 focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-white placeholder:text-white/20"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <button 
+                                    type="submit"
+                                    disabled={creatingLab}
+                                    className="w-full py-5 bg-accent text-white font-black rounded-2xl shadow-xl shadow-accent/20 hover:shadow-accent/40 hover:-translate-y-1 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                                >
+                                    {creatingLab ? 'Procesando...' : 'REGISTRAR BIOANALISTA'}
+                                    <span>🔬</span>
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* Lista de Especialistas de Laboratorio */}
+                        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[3rem] p-10 overflow-hidden">
+                            <div className="flex items-center justify-between mb-8">
+                                <h3 className="text-2xl font-black">Personal de <span className="text-accent">Laboratorio</span></h3>
+                                <div className="flex gap-4">
+                                    <div className="px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                                        <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">
+                                            {laboratoryList.filter(l => !l.is_verified).length} PENDIENTES
+                                        </span>
+                                    </div>
+                                    <button onClick={fetchLaboratorySpecialists} className="text-white/40 hover:text-white text-xs font-black">🔄</button>
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="border-b border-white/5">
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4">Especialista</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4">Licencia</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4 text-center">Verificación</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4 text-center">Estado</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/30 px-4 text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {laboratoryList.map((lab) => (
+                                            <tr key={lab.id} className="border-b border-white/5 group hover:bg-white/[0.02] transition-colors">
+                                                <td className="py-6 px-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="relative">
+                                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent/40 to-teal-600 flex items-center justify-center text-white font-black">
+                                                                {lab.full_name.charAt(0)}
+                                                            </div>
+                                                            {lab.is_verified && (
+                                                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full border-2 border-[#020714] flex items-center justify-center text-[8px]">✓</div>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-white leading-tight">{lab.full_name}</p>
+                                                            <p className="text-[10px] text-accent font-black uppercase tracking-widest mt-1">Bioanalista</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-6 px-4">
+                                                    <p className="text-sm font-bold text-white/70">{lab.license_number || 'SIN LICENCIA'}</p>
+                                                </td>
+                                                <td className="py-6 px-4 text-center">
+                                                    <button
+                                                        onClick={async () => {
+                                                            const { error } = await (supabase as any).from('laboratories').update({ is_verified: !lab.is_verified }).eq('id', lab.id);
+                                                            if (!error) fetchLaboratorySpecialists();
+                                                            else toast.error('Error al actualizar verificación');
+                                                        }}
+                                                        className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${
+                                                            lab.is_verified
+                                                            ? 'bg-accent/10 border-accent/30 text-accent'
+                                                            : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500 hover:bg-yellow-500 hover:text-black'
+                                                        }`}
+                                                    >
+                                                        {lab.is_verified ? 'VERIFICADO' : 'PENDIENTE'}
+                                                    </button>
+                                                </td>
+                                                <td className="py-6 px-4 text-center">
+                                                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${lab.is_active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                        {lab.is_active ? 'ACTIVO' : 'INACTIVO'}
+                                                    </span>
+                                                </td>
+                                                <td className="py-6 px-4 text-right">
+                                                    <div className="flex items-center justify-end gap-3">
+                                                        <button 
+                                                            onClick={async () => {
+                                                                const updatePromise = (supabase as any).from('laboratories').update({ is_active: !lab.is_active }).eq('id', lab.id);
+                                                                toast.promise(updatePromise, {
+                                                                    loading: 'Actualizando estado...',
+                                                                    success: () => {
+                                                                        fetchLaboratorySpecialists();
+                                                                        return `Bioanalista ${!lab.is_active ? 'Activado' : 'Desactivado'}`;
+                                                                    },
+                                                                    error: 'Error al cambiar estado'
+                                                                });
+                                                            }}
+                                                            className={`p-2.5 rounded-xl border transition-all ${lab.is_active ? 'border-red-500/20 text-red-400 hover:bg-red-500/10' : 'border-green-500/20 text-green-400 hover:bg-green-500/10'}`}
+                                                            title={lab.is_active ? 'Desactivar Acceso' : 'Activar Acceso'}
+                                                        >
+                                                            {lab.is_active ? '🚫' : '✅'}
+                                                        </button>
+                                                        <button 
+                                                            onClick={async () => {
+                                                                if (confirm('¿Eliminar bioanalista permanentemente?')) {
+                                                                    const { error } = await (supabase as any).from('laboratories').delete().eq('id', lab.id);
+                                                                    if (!error) fetchLaboratorySpecialists();
+                                                                }
+                                                            }}
+                                                            className="p-2.5 rounded-xl border border-red-500/10 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 transition-all"
+                                                            title="ELIMINAR PERMANENTEMENTE"
+                                                        >
+                                                            🗑️
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {laboratoryList.length === 0 && !fetchingLab && (
+                                            <tr>
+                                                <td colSpan={5} className="py-20 text-center text-white/20 italic">No hay especialistas registrados.</td>
                                             </tr>
                                         )}
                                     </tbody>
