@@ -239,7 +239,9 @@ export default function AdminDashboard() {
             const { error: dbError } = await (supabase as any).from('laboratories').upsert({
                 full_name: labName,
                 email: syntheticEmail,
+                cedula: labCedula,
                 license_number: labLicense,
+                specialty: 'Bioanalista Clínico',
                 is_active: true
             }, { onConflict: 'email' });
 

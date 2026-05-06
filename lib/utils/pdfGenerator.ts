@@ -128,7 +128,8 @@ const addHeader = (doc: jsPDF): number => {
 /**
  * Agrega el bloque de firma unificado
  */
-const addSignatureFooter = (doc: jsPDF, doctor: DoctorData) => {
+const addSignatureFooter = (doc: jsPDF, doctor: DoctorData | null | undefined) => {
+    if (!doctor) return; // Guard: si no hay datos del firmante, no renderizar
     const pageHeight = doc.internal.pageSize.getHeight();
     let y = pageHeight - 40;
 
@@ -140,7 +141,7 @@ const addSignatureFooter = (doc: jsPDF, doctor: DoctorData) => {
     doc.setTextColor(0);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.text(`Dr. ${doctor.full_name}`, 105, y, { align: 'center' });
+    doc.text(`Dr(a). ${doctor.full_name}`, 105, y, { align: 'center' });
     y += 5;
 
     doc.setFont('helvetica', 'normal');
@@ -150,7 +151,7 @@ const addSignatureFooter = (doc: jsPDF, doctor: DoctorData) => {
 
     const credenciales = [];
     if (doctor.cedula) credenciales.push(`C.I.: ${doctor.cedula}`);
-    if (doctor.license_number) credenciales.push(`MPPS: ${doctor.license_number}`);
+    if (doctor.license_number) credenciales.push(`MPPS/LIC: ${doctor.license_number}`);
 
     if (credenciales.length > 0) {
         doc.text(credenciales.join('  |  '), 105, y, { align: 'center' });
@@ -187,23 +188,18 @@ const addPatientBox = (doc: jsPDF, patient: PatientData, startY: number): number
     let y = startY + 6;
     doc.setFontSize(9);
 
-    // Etiqueta Paciente
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
     doc.text('PACIENTE:', 20, y);
     
-    // Nombre del Paciente con límite de ancho para evitar choque con C.I.
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0);
-    const nameWidth = 85; // Espacio máximo para el nombre antes de llegar a C.I.
-    doc.text(patient.full_name, 40, y, { maxWidth: nameWidth });
+    doc.text(patient.full_name, 40, y);
 
-    // Etiqueta C.I.
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
     doc.text('C.I.:', 130, y);
     
-    // Valor C.I.
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0);
     doc.text(patient.cedula, 138, y);
@@ -234,69 +230,54 @@ export const generateInformeMedico = (
     y = addDocumentTitle(doc, 'INFORME MÉDICO', record.record_date, y);
     y = addPatientBox(doc, patient, y);
 
-    // === SIGNOS VITALES (Diseño Mejorado) ===
+    // Signos Vitales
     const temp = record.temperature ? `${record.temperature} °C` : '--';
     const sist = record.systolic_pressure || '--';
     const diast = record.diastolic_pressure || '--';
     const pulse = record.pulse ? `${record.pulse} ppm` : '--';
 
-    // Dibujar fondo sutil para signos vitales
-    doc.setFillColor(252, 241, 241); // Fondo rosado muy pálido (acorde al tema médico/rojo)
+    doc.setFillColor(252, 241, 241);
     doc.roundedRect(15, y - 5, 180, 12, 1, 1, 'F');
     
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    
-    // Temperatura
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
     doc.text('TEMPERATURA:', 20, y + 3);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(180, 0, 0); // Rojo clínico
+    doc.setTextColor(180, 0, 0);
     doc.text(temp, 48, y + 3);
 
-    // Presión
-    doc.setFont('helvetica', 'bold');
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
     doc.text('TENSIÓN ART:', 80, y + 3);
-    doc.setFont('helvetica', 'bold');
     doc.setTextColor(180, 0, 0);
     doc.text(`${sist}/${diast} mmHg`, 108, y + 3);
 
-    // Pulso
-    doc.setFont('helvetica', 'bold');
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
     doc.text('PULSO:', 155, y + 3);
-    doc.setFont('helvetica', 'bold');
     doc.setTextColor(180, 0, 0);
     doc.text(pulse, 170, y + 3);
 
     y += 18;
 
-    // === MOTIVO ===
+    // Motivo
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
     doc.text('MOTIVO:', 20, y);
     y += 6;
-
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0);
-    // Usamos 'symptoms' como Motivo según la lógica definida
     const motivoText = doc.splitTextToSize(record.symptoms || 'Control Médico', 170);
     doc.text(motivoText, 20, y);
     y += motivoText.length * 5 + 10;
 
-    // === DIAGNÓSTICO ===
+    // Diagnóstico
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
     doc.text('DIAGNÓSTICO:', 20, y);
     y += 6;
-
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0);
     
     const pathologyName = record.pathologies?.name || '';
-    // Si hay patología oficial, la ponemos en negrita/mayúscula primero
     if (pathologyName) {
         doc.setFont('helvetica', 'bold');
         doc.text(pathologyName.toUpperCase(), 20, y);
@@ -307,9 +288,6 @@ export const generateInformeMedico = (
     const diagnosisText = doc.splitTextToSize(record.diagnosis || 'No especificado', 170);
     doc.text(diagnosisText, 20, y);
     y += diagnosisText.length * 5 + 10;
-
-    // (Opcional) Nota de reposo si existe, aunque no está en la imagen referencia estricta, suele ir en informes.
-    // La imagen referencia NO muestra tratamiento. Así que NO lo pongo.
 
     addSignatureFooter(doc, doctor);
     addGlobalFooter(doc);
@@ -330,17 +308,15 @@ export const generateReceta = (
 
     doc.setFont('times', 'bold');
     doc.setFontSize(24);
-    doc.setTextColor(0);
     doc.text('Rp./', 20, y);
     y += 12;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
-
     doc.text('MEDICAMENTO', 22, y);
     doc.text('DOSIS / PRESENTACIÓN', 100, y);
-    doc.text('CANTIDAD A DESPACHAR', 150, y);
+    doc.text('CANTIDAD', 150, y);
 
     y += 2;
     doc.setDrawColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
@@ -357,40 +333,15 @@ export const generateReceta = (
             if (y > pageHeight - 60) {
                 doc.addPage();
                 y = addHeader(doc) + 20;
-                doc.setFont('helvetica', 'bold');
-                doc.text('MEDICAMENTO', 22, y);
-                y += 6;
             }
-
-            const medName = doc.splitTextToSize(item.medicine_name, 70);
-            const dosage = doc.splitTextToSize(item.dosage || '--', 40);
-            const qty = item.quantity || '--';
-
-            doc.text(medName, 22, y);
-            doc.text(dosage, 100, y);
-            doc.text(qty, 150, y);
-
-            const rows = Math.max(medName.length, dosage.length);
-            const rowHeight = rows * 6;
-
-            y += rowHeight + 4;
-
-            doc.setDrawColor(240);
-            doc.setLineWidth(0.1);
-            doc.line(20, y - 2, 190, y - 2);
+            doc.text(item.medicine_name, 22, y, { maxWidth: 70 });
+            doc.text(item.dosage || '--', 100, y, { maxWidth: 40 });
+            doc.text(item.quantity || '--', 150, y);
+            y += 10;
         });
-    } else if (record.prescriptions?.text) {
-        const lines = doc.splitTextToSize(record.prescriptions.text, 170);
-        doc.text(lines, 20, y);
     } else {
-        doc.setTextColor(150);
-        doc.text('Sin medicamentos indicados.', 20, y);
+        doc.text(record.prescriptions?.text || 'Sin medicamentos indicados.', 20, y, { maxWidth: 170 });
     }
-
-    const footerY = pageHeight - 50;
-    doc.setFontSize(8);
-    doc.setTextColor(100);
-    doc.text('Este documento es válido exclusivamente para la dispensación de medicamentos en farmacia.', 20, footerY);
 
     addSignatureFooter(doc, doctor);
     addGlobalFooter(doc);
@@ -404,32 +355,19 @@ export const generateConstancia = (
 ) => {
     const doc = new jsPDF();
     let y = addHeader(doc);
-
     y = addDocumentTitle(doc, 'CONSTANCIA DE ASISTENCIA', record.record_date, y);
     y = addPatientBox(doc, patient, y);
 
-    doc.setFont('helvetica', 'normal');
+    const diag = record.pathologies?.name ? `${record.pathologies.name} - ${record.diagnosis}` : record.diagnosis;
+    const bodyText = `Quien suscribe, Dr(a). ${doctor.full_name}, hace constar que el paciente asistió a consulta el día ${formatDate(record.record_date)}.\n\nDiagnóstico: ${diag}`;
     
-    const pathologyName = record.pathologies?.name || '';
-    const diagFinal = pathologyName 
-        ? `${pathologyName.toUpperCase()} - ${record.diagnosis}`
-        : record.diagnosis;
+    doc.text(doc.splitTextToSize(bodyText, 160), 25, y);
+    y += 40;
 
-    const bodyText1 = `Quien suscribe, Dr(a). ${doctor.full_name}, hace constar por medio de la presente que el paciente antes mencionado asistió a consulta médica en nuestras instalaciones el día ${formatDate(record.record_date)}, para evaluación y control de salud.\n\nDiagnóstico Clínico: ${diagFinal}`;
-
-    const lines1 = doc.splitTextToSize(bodyText1, 160);
-    doc.text(lines1, 25, y);
-    y += lines1.length * 6 + 10;
-
-    if (record.requires_rest && record.rest_days && record.rest_days > 0) {
+    if (record.requires_rest) {
         doc.setFont('helvetica', 'bold');
-        const restLines = doc.splitTextToSize(`NOTA: Se indica REPOSO MÉDICO por un lapso de ${record.rest_days} día(s) contados a partir de la fecha de la consulta.`, 160);
-        doc.text(restLines, 25, y);
-        y += restLines.length * 6 + 10;
+        doc.text(`REPOSO MÉDICO: ${record.rest_days} día(s).`, 25, y);
     }
-
-    doc.setFont('helvetica', 'normal');
-    doc.text('Constancia que se expide a petición de la parte interesada.', 25, y);
 
     addSignatureFooter(doc, doctor);
     addGlobalFooter(doc);
@@ -443,84 +381,201 @@ export const generateOrdenExamen = (
 ) => {
     const doc = new jsPDF();
     let y = addHeader(doc);
-
     y = addDocumentTitle(doc, 'ORDEN DE EXÁMENES', record.record_date, y);
     y = addPatientBox(doc, patient, y);
 
-    doc.setFontSize(11);
-    doc.setTextColor(0);
+    const categories = [
+        { title: '1. LABORATORIO CLÍNICO', data: record.lab_request },
+        { title: '2. RAYOS X / IMAGENOLOGÍA', data: record.xray_request },
+        { title: '3. OTROS ESTUDIOS', data: record.other_request }
+    ];
 
-    // Se solicita evaluación mediante los siguientes estudios:
-    doc.setFont('helvetica', 'normal');
-    const intro = "Se solicita realizar los siguientes estudios paraclínicos para evaluación diagnóstica:";
-    doc.text(intro, 20, y);
-    y += 10;
-
-    let hasExams = false;
-
-    // 1. Laboratorio
-    if (record.lab_request) {
-        hasExams = true;
-        // Caja de título
-        doc.setFillColor(245, 248, 255);
-        doc.roundedRect(20, y, 170, 8, 1, 1, 'F');
-
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
-        doc.text('1. LABORATORIO CLÍNICO (Heces - Orina - Hematología)', 25, y + 5.5);
-        y += 12;
-
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0);
-        const labText = doc.splitTextToSize(record.lab_request, 160);
-        doc.text(labText, 25, y);
-        y += labText.length * 6 + 8;
-    }
-
-    // 2. Rayos X
-    if (record.xray_request) {
-        hasExams = true;
-        doc.setFillColor(245, 248, 255);
-        doc.roundedRect(20, y, 170, 8, 1, 1, 'F');
-
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
-        doc.text('2. RAYOS X / IMAGENOLOGÍA', 25, y + 5.5);
-        y += 12;
-
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0);
-        const xrayText = doc.splitTextToSize(record.xray_request, 160);
-        doc.text(xrayText, 25, y);
-        y += xrayText.length * 6 + 8;
-    }
-
-    // 3. Otros
-    if (record.other_request) {
-        hasExams = true;
-        doc.setFillColor(245, 248, 255);
-        doc.roundedRect(20, y, 170, 8, 1, 1, 'F');
-
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
-        doc.text('3. OTROS ESTUDIOS / OBSERVACIONES', 25, y + 5.5);
-        y += 12;
-
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0);
-        const otherText = doc.splitTextToSize(record.other_request, 160);
-        doc.text(otherText, 25, y);
-        y += otherText.length * 6 + 8;
-    }
-
-    if (!hasExams) {
-        doc.setFont('helvetica', 'italic');
-        doc.setTextColor(100);
-        doc.text('Sin estudios adicionales solicitados en esta orden.', 25, y);
-        y += 10;
-    }
+    categories.forEach(cat => {
+        if (cat.data) {
+            doc.setFont('helvetica', 'bold');
+            doc.text(cat.title, 20, y);
+            y += 6;
+            doc.setFont('helvetica', 'normal');
+            doc.text(doc.splitTextToSize(cat.data, 160), 25, y);
+            y += 20;
+        }
+    });
 
     addSignatureFooter(doc, doctor);
     addGlobalFooter(doc);
-    doc.save(`Orden_Examen_${patient.full_name}.pdf`);
+    doc.save(`Orden_${patient.full_name}.pdf`);
+};
+
+export const generateResultadoLaboratorio = (
+    patient: PatientData,
+    specialist: { full_name: string; license_number?: string },
+    order: { test_name: string; category: string; created_at: string },
+    results: { results_data: any; observations?: string }
+) => {
+    const doc = new jsPDF();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let y = addHeader(doc);
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
+    doc.text('RESULTADOS DE LABORATORIO', 105, y, { align: 'center' });
+    y += 7;
+    // Subtítulo específico por categoría
+    doc.setFontSize(10);
+    const subtitle = order.category === 'heces'
+        ? 'RESULTADOS EXAMEN GENERAL DE HECES'
+        : order.category === 'orina'
+        ? 'EXAMEN GENERAL DE ORINA'
+        : 'INFORME DE RESULTADOS DE LABORATORIO';
+    doc.text(subtitle, 105, y, { align: 'center' });
+    y += 10;
+
+    doc.setFillColor(245, 247, 250);
+    doc.roundedRect(15, y, 180, 25, 2, 2, 'F');
+    doc.setFontSize(9);
+    doc.setTextColor(50, 50, 50);
+    
+    doc.setFont('helvetica', 'bold'); doc.text('PACIENTE:', 20, y + 8);
+    doc.setFont('helvetica', 'normal'); doc.text(patient.full_name.toUpperCase(), 45, y + 8);
+    doc.setFont('helvetica', 'bold'); doc.text('CÉDULA:', 20, y + 15);
+    doc.setFont('helvetica', 'normal'); doc.text(patient.cedula, 45, y + 15);
+    doc.setFont('helvetica', 'bold'); doc.text('FECHA:', 130, y + 8);
+    doc.setFont('helvetica', 'normal'); doc.text(new Date(order.created_at).toLocaleDateString(), 155, y + 8);
+    doc.setFont('helvetica', 'bold'); doc.text('EXAMEN:', 130, y + 15);
+    doc.setFont('helvetica', 'normal'); doc.text(order.test_name.toUpperCase(), 155, y + 15);
+    
+    y += 35;
+
+    const addTableHeader = (doc: jsPDF, yPos: number) => {
+        doc.setFillColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
+        doc.roundedRect(15, yPos, 180, 8, 1, 1, 'F');
+        doc.setFontSize(8);
+        doc.setTextColor(255);
+        doc.setFont('helvetica', 'bold');
+        doc.text('PARÁMETRO', 20, yPos + 5.5);
+        doc.text('RESULTADO', 90, yPos + 5.5, { align: 'center' });
+        doc.text('UNIDAD', 125, yPos + 5.5, { align: 'center' });
+        doc.text('VALORES DE REFERENCIA', 167, yPos + 5.5, { align: 'center' });
+        return yPos + 12;
+    };
+
+    y = addTableHeader(doc, y);
+    doc.setTextColor(0);
+
+    // Mapa de nombres de sección para el PDF
+    const SECTION_NAMES: Record<string, string> = {
+        datosMuestra:           '1. DATOS DE LA MUESTRA',
+        macroscopico:           '2. EXAMEN MACROSCÓPICO',
+        quimicoHeces:           '3. EXAMEN QUÍMICO',
+        microscopicoCorologico: '4. EXAMEN MICROSCÓPICO / COPROLÓGICO',
+        coproparasitario:       '5. EXAMEN COPROPARASITARIO',
+        hematologia:            'HEMATOLOGÍA',
+        grupo:                  'GRUPO SANGUÍNEO',
+        coagulacion:            'COAGULACIÓN',
+        quimica:                'QUÍMICA SANGUÍNEA',
+        fisico:                 'EXAMEN FÍSICO',
+        quimico:                'EXAMEN QUÍMICO',
+        sedimento:              'SEDIMENTO URINARIO (MICROSCÓPICO)',
+        parasitario:            'EXAMEN COPROPARASITARIO',
+    };
+
+    const sections = results.results_data;
+    for (const sectionName in sections) {
+        const fields = sections[sectionName];
+        const displayName = SECTION_NAMES[sectionName] || sectionName.toUpperCase();
+
+        // Sección especial: Datos de la Muestra (tabla 2 columnas: Campo | Información)
+        if (sectionName === 'datosMuestra') {
+            if (y > pageHeight - 50) { doc.addPage(); y = addHeader(doc); }
+            doc.setFont('helvetica', 'bold');
+            doc.setFillColor(245, 245, 245);
+            doc.rect(15, y - 4, 180, 6, 'F');
+            doc.text(displayName, 20, y);
+            y += 8;
+            // Cabecera de 2 columnas
+            doc.setFillColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
+            doc.roundedRect(15, y, 180, 7, 1, 1, 'F');
+            doc.setFontSize(8); doc.setTextColor(255);
+            doc.text('CAMPO', 20, y + 5);
+            doc.text('INFORMACIÓN', 105, y + 5);
+            y += 10;
+            doc.setTextColor(0); doc.setFont('helvetica', 'normal');
+            for (const field in fields) {
+                const val = typeof fields[field] === 'object' ? (fields[field].value || '') : (fields[field] || '');
+                if (val) {
+                    if (y > pageHeight - 20) { doc.addPage(); y = addHeader(doc); }
+                    doc.setFontSize(8);
+                    doc.text(field, 20, y);
+                    doc.text(val, 105, y);
+                    doc.setDrawColor(240); doc.setLineWidth(0.1);
+                    doc.line(15, y + 2, 195, y + 2);
+                    y += 7;
+                }
+            }
+            y += 5;
+            // Agregar tabla estándar para el resto
+            y = addTableHeader(doc, y);
+            doc.setTextColor(0);
+            continue;
+        }
+
+        if (y > pageHeight - 30) {
+            doc.addPage();
+            y = addHeader(doc);
+            y = addTableHeader(doc, y);
+        }
+        doc.setFont('helvetica', 'bold');
+        doc.setFillColor(245, 245, 245);
+        doc.rect(15, y - 4, 180, 6, 'F');
+        doc.text(displayName, 20, y);
+        y += 8;
+        doc.setFont('helvetica', 'normal');
+        
+        for (const field in fields) {
+            const data = fields[field];
+            const value = typeof data === 'object' ? data.value : (data || '--');
+            const unit = typeof data === 'object' ? (data.unit || '') : '';
+            const reference = typeof data === 'object' ? (data.reference || '--') : '--';
+            
+            if (value && value !== '--') {
+                if (y > pageHeight - 20) {
+                    doc.addPage();
+                    y = addHeader(doc);
+                    y = addTableHeader(doc, y);
+                }
+                doc.setFontSize(8);
+                doc.text(field, 20, y);
+                doc.setFont('helvetica', 'bold');
+                doc.text(value, 90, y, { align: 'center' });
+                doc.setFont('helvetica', 'normal');
+                doc.text(unit, 125, y, { align: 'center' });
+                doc.text(reference, 167, y, { align: 'center' });
+                doc.setDrawColor(240);
+                doc.setLineWidth(0.1);
+                doc.line(15, y + 2, 195, y + 2);
+                y += 7;
+            }
+        }
+        y += 5;
+    }
+
+    if (results.observations) {
+        if (y > pageHeight - 50) { doc.addPage(); y = 30; }
+        doc.setFont('helvetica', 'bold');
+        doc.text('OBSERVACIONES:', 20, y);
+        y += 6;
+        doc.setFont('helvetica', 'normal');
+        doc.text(doc.splitTextToSize(results.observations, 170), 20, y);
+    }
+
+    // Asegurar que el especialista tenga el título correcto de Bioanalista
+    const specialistWithDefaults = {
+        ...specialist,
+        specialty: (specialist as any).specialty || 'Bioanalista Clínico',
+        full_name: (specialist as any).full_name || 'Bioanalista',
+    };
+    addSignatureFooter(doc, specialistWithDefaults as any);
+    addGlobalFooter(doc);
+    doc.save(`Resultado_${order.test_name}_${patient.full_name}.pdf`);
 };

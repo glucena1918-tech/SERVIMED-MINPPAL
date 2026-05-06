@@ -75,6 +75,7 @@ export default function LaboratoryDashboard() {
         if (error) {
             console.error('Error cargando órdenes:', error);
         } else {
+            console.log('Órdenes cargadas:', data);
             setOrders(data || []);
         }
     };
@@ -100,11 +101,15 @@ export default function LaboratoryDashboard() {
     };
 
     const filteredOrders = orders.filter(order => {
-        const matchesSearch = order.patient?.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                             order.patient?.cedula.includes(searchTerm);
+        const patientName = order.patient?.full_name || '';
+        const patientCedula = order.patient?.cedula || '';
+        
+        const matchesSearch = patientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             patientCedula.includes(searchTerm);
         const matchesCategory = filterCategory === 'all' || order.category === filterCategory;
         return matchesSearch && matchesCategory;
     });
+
 
     if (loading) {
         return (

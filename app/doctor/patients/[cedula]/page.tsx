@@ -1357,9 +1357,45 @@ export default function PatientHistoryPage() {
                                                 </p>
                                             </div>
                                             <button 
-                                                onClick={() => {
-                                                    // Aquí se abriría un modal o se generaría el PDF del resultado
-                                                    toast.success('Abriendo reporte de resultados...');
+                                                onClick={async () => {
+                                                    try {
+                                                        // Obtener resultados del laboratorio
+                                                        const { data: results } = await (supabase
+                                                            .from('laboratory_results') as any)
+                                                            .select('*')
+                                                            .eq('order_id', order.id)
+                                                            .single();
+
+                                                        if (!results) {
+                                                            toast.error('No se encontraron resultados para esta orden.');
+                                                            return;
+                                                        }
+
+                                                        // Obtener datos del especialista que firmó
+                                                        let specialistData: any = { full_name: 'Bioanalista', specialty: 'Bioanalista Clínico', license_number: '', cedula: '' };
+                                                        if (results.specialist_id) {
+                                                            const { data: spec } = await (supabase
+                                                                .from('laboratories') as any)
+                                                                .select('full_name, license_number, email, specialty')
+                                                                .eq('id', results.specialist_id)
+                                                                .single();
+                                                            if (spec) {
+                                                                const cedulaFromEmail = spec.email?.split('@')[0] || '';
+                                                                specialistData = { ...spec, cedula: cedulaFromEmail, specialty: spec.specialty || 'Bioanalista Clínico' };
+                                                            }
+                                                        }
+
+                                                        // Generar PDF con datos del paciente actual
+                                                        const { generateResultadoLaboratorio } = await import('@/lib/utils/pdfGenerator');
+                                                        generateResultadoLaboratorio(
+                                                            patient,
+                                                            specialistData,
+                                                            { test_name: order.test_name, category: order.category, created_at: order.created_at },
+                                                            results
+                                                        );
+                                                    } catch (e) {
+                                                        toast.error('Error al generar el reporte.');
+                                                    }
                                                 }}
                                                 className="w-full py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-gray-800 transition-all"
                                             >

@@ -67,7 +67,29 @@ function RequestAppointmentForm() {
     const [loadingTimes, setLoadingTimes] = useState(false);
 
     // Horarios realmente disponibles (filtrados)
-    const availableTimes = allTimes.filter(t => !bookedTimes.includes(t));
+    const availableTimes = allTimes.filter(t => {
+        if (bookedTimes.includes(t)) return false;
+
+        // Si la fecha seleccionada es hoy, no permitir seleccionar horas que ya pasaron
+        const now = new Date();
+        
+        // Obtener la fecha de hoy en formato YYYY-MM-DD ajustada a la zona horaria local
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+        
+        if (date === todayStr) {
+            const [hours, minutes] = t.split(':').map(Number);
+            const slotTime = hours * 60 + minutes;
+            const nowTime = now.getHours() * 60 + now.getMinutes();
+            
+            // Retornar true solo si el slot es al menos 5 minutos en el futuro (margen de maniobra)
+            return slotTime > (nowTime + 5);
+        }
+        return true;
+    });
+
 
     useEffect(() => {
         const fetchDoctors = async () => {
@@ -218,10 +240,12 @@ function RequestAppointmentForm() {
                 throw new Error('No se encontró su perfil de paciente. Por favor complete su ficha médica primero.');
             }
 
-            // Validar que la fecha sea futura
-            const selectedDate = new Date(`${date}T${time}`);
-            if (selectedDate < new Date()) {
-                throw new Error('La fecha y hora deben ser futuras.');
+            // Validar que la fecha y hora sean futuras con un pequeño margen
+            const selectedDateTime = new Date(`${date}T${time}`);
+            const now = new Date();
+            
+            if (selectedDateTime.getTime() < now.getTime()) {
+                throw new Error('La hora seleccionada ya ha pasado. Por favor, elija un horario futuro.');
             }
 
             // Insertar usando los IDs internos
