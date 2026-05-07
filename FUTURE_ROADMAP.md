@@ -10,6 +10,19 @@ Este módulo ya cuenta con toda la infraestructura técnica instalada y configur
 
 ---
 
+## 🩻 Módulo de Radiología / Rayos X (En Planificación)
+
+Basado en los nuevos requerimientos del Servicio Médico, se implementará un flujo para la gestión de imágenes diagnósticas básicas.
+
+*   **Objetivo:** Digitalizar el proceso de solicitud y entrega de resultados de Rayos X.
+*   **Componentes Principales:**
+    - **Panel del Radiólogo:** Interfaz para que el especialista visualice la imagen (JPG/Digitalizada) e informe los hallazgos.
+    - **Generador de Informes:** Creación de documentos PDF oficiales con el diagnóstico radiológico.
+    - **Integración con Historia Clínica:** Acceso directo desde la ficha del paciente a sus placas e informes.
+*   **Estado:** En espera de levantamiento de información técnica.
+
+---
+
 ## 📱 Conversión a Aplicación Móvil (Pendiente por autorizar)
 
 ### Opción Seleccionada: El Camino Rápido (PWA - Progressive Web App)

@@ -169,10 +169,10 @@ export default function LaboratoryDashboard() {
                 {/* Métricas */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     {[
-                        { label: 'Pendientes', value: orders.filter(o => o.status === 'pendiente').length, icon: '📋', color: 'yellow-400' },
-                        { label: 'En Proceso', value: orders.filter(o => o.status === 'en_proceso').length, icon: '🧪', color: 'blue-400' },
-                        { label: 'Completados', value: orders.filter(o => o.status === 'completado').length, icon: '✅', color: 'accent' },
-                        { label: 'Total Hoy', value: orders.length, icon: '📊', color: 'purple-400' }
+                        { label: 'Pendientes', value: filteredOrders.filter(o => o.status === 'pendiente').length, icon: '📋', color: 'yellow-400' },
+                        { label: 'En Proceso', value: filteredOrders.filter(o => o.status === 'en_proceso' || o.status === 'muestra_tomada').length, icon: '🧪', color: 'blue-400' },
+                        { label: 'Completados', value: filteredOrders.filter(o => o.status === 'completado').length, icon: '✅', color: 'accent' },
+                        { label: 'Total Hoy', value: filteredOrders.length, icon: '📊', color: 'purple-400' }
                     ].map((stat, i) => (
                         <div key={i} className="bg-white/5 backdrop-blur-md rounded-3xl p-6 border border-white/10">
                             <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-1">{stat.label}</p>

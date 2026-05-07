@@ -73,6 +73,7 @@ El sistema estandariza la salida documental siguiendo normativas estrictas:
 El sistema está construido modularmente para permitir futuras expansiones:
 - **Telemedicina:** Integración de videollamadas para consultas remotas.
 - **Farmacia:** Módulo de inventario y despacho de medicamentos.
+- **Radiología (Rayos X):** Panel especializado para la gestión de placas e informes radiológicos.
 - **Analítica:** Dashboard gerencial con estadísticas de salud poblacional.
 - **App Móvil:** API lista para ser consumida por una futura aplicación nativa.
 
