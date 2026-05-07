@@ -1,5 +1,15 @@
 # 🚀 HOJA DE RUTA FUTURA - SERVIMED MINPPAL
 
+## 💻 Migración a Entorno Local (Preparado / En Espera)
+
+Este módulo ya cuenta con toda la infraestructura técnica instalada y configurada. Se encuentra en pausa hasta la autorización final para el "switch" oficial.
+
+*   **Estado:** Infraestructura 100% configurada.
+*   **Requisitos Completados:** Docker activo, Supabase CLI instalado, scripts de automatización listos.
+*   **Acción Pendiente:** Ejecutar `npm run supabase:start` y actualizar variables de entorno.
+
+---
+
 ## 📱 Conversión a Aplicación Móvil (Pendiente por autorizar)
 
 ### Opción Seleccionada: El Camino Rápido (PWA - Progressive Web App)
@@ -13,7 +23,8 @@ Basado en nuestra conversación del 03 de Mayo, este es el plan para permitir qu
     - Mantiene el diseño premium y la conexión segura actual.
 
 ---
-**NOTA:** Este módulo está en pausa y NO se iniciará su desarrollo hasta que el usuario dé su autorización mañana.
+**NOTA:** Estos módulos están en pausa y NO se iniciará su desarrollo/migración hasta que el usuario dé su autorización.
 
 ---
-*Documento generado el 03/05/2026 para revisión de la próxima sesión.*
+*Documento actualizado el 07/05/2026 tras la configuración del entorno local.*
+

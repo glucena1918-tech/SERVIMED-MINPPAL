@@ -99,7 +99,7 @@ const addGlobalFooter = (doc: jsPDF) => {
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(COLORS.GRAY_TEXT[0], COLORS.GRAY_TEXT[1], COLORS.GRAY_TEXT[2]);
-    
+
     // Dirección alineada a la izquierda
     doc.text(INSTITUTION_ADDRESS, margin, footerY);
 };
@@ -191,7 +191,7 @@ const addPatientBox = (doc: jsPDF, patient: PatientData, startY: number): number
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
     doc.text('PACIENTE:', 20, y);
-    
+
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0);
     doc.text(patient.full_name, 40, y);
@@ -199,7 +199,7 @@ const addPatientBox = (doc: jsPDF, patient: PatientData, startY: number): number
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
     doc.text('C.I.:', 130, y);
-    
+
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0);
     doc.text(patient.cedula, 138, y);
@@ -238,7 +238,7 @@ export const generateInformeMedico = (
 
     doc.setFillColor(252, 241, 241);
     doc.roundedRect(15, y - 5, 180, 12, 1, 1, 'F');
-    
+
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(COLORS.BLUE_DARK[0], COLORS.BLUE_DARK[1], COLORS.BLUE_DARK[2]);
@@ -276,7 +276,7 @@ export const generateInformeMedico = (
     y += 6;
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0);
-    
+
     const pathologyName = record.pathologies?.name || '';
     if (pathologyName) {
         doc.setFont('helvetica', 'bold');
@@ -360,7 +360,7 @@ export const generateConstancia = (
 
     const diag = record.pathologies?.name ? `${record.pathologies.name} - ${record.diagnosis}` : record.diagnosis;
     const bodyText = `Quien suscribe, Dr(a). ${doctor.full_name}, hace constar que el paciente asistió a consulta el día ${formatDate(record.record_date)}.\n\nDiagnóstico: ${diag}`;
-    
+
     doc.text(doc.splitTextToSize(bodyText, 160), 25, y);
     y += 40;
 
@@ -426,8 +426,8 @@ export const generateResultadoLaboratorio = (
     const subtitle = order.category === 'heces'
         ? 'RESULTADOS EXAMEN GENERAL DE HECES'
         : order.category === 'orina'
-        ? 'EXAMEN GENERAL DE ORINA'
-        : 'INFORME DE RESULTADOS DE LABORATORIO';
+            ? 'EXAMEN GENERAL DE ORINA'
+            : 'INFORME DE RESULTADOS DE LABORATORIO';
     doc.text(subtitle, 105, y, { align: 'center' });
     y += 10;
 
@@ -435,7 +435,7 @@ export const generateResultadoLaboratorio = (
     doc.roundedRect(15, y, 180, 25, 2, 2, 'F');
     doc.setFontSize(9);
     doc.setTextColor(50, 50, 50);
-    
+
     doc.setFont('helvetica', 'bold'); doc.text('PACIENTE:', 20, y + 8);
     doc.setFont('helvetica', 'normal'); doc.text(patient.full_name.toUpperCase(), 45, y + 8);
     doc.setFont('helvetica', 'bold'); doc.text('CÉDULA:', 20, y + 15);
@@ -444,7 +444,7 @@ export const generateResultadoLaboratorio = (
     doc.setFont('helvetica', 'normal'); doc.text(new Date(order.created_at).toLocaleDateString(), 155, y + 8);
     doc.setFont('helvetica', 'bold'); doc.text('EXAMEN:', 130, y + 15);
     doc.setFont('helvetica', 'normal'); doc.text(order.test_name.toUpperCase(), 155, y + 15);
-    
+
     y += 35;
 
     const addTableHeader = (doc: jsPDF, yPos: number) => {
@@ -465,19 +465,19 @@ export const generateResultadoLaboratorio = (
 
     // Mapa de nombres de sección para el PDF
     const SECTION_NAMES: Record<string, string> = {
-        datosMuestra:           '1. DATOS DE LA MUESTRA',
-        macroscopico:           '2. EXAMEN MACROSCÓPICO',
-        quimicoHeces:           '3. EXAMEN QUÍMICO',
+        datosMuestra: '1. DATOS DE LA MUESTRA',
+        macroscopico: '2. EXAMEN MACROSCÓPICO',
+        quimicoHeces: '3. EXAMEN QUÍMICO',
         microscopicoCorologico: '4. EXAMEN MICROSCÓPICO / COPROLÓGICO',
-        coproparasitario:       '5. EXAMEN COPROPARASITARIO',
-        hematologia:            'HEMATOLOGÍA',
-        grupo:                  'GRUPO SANGUÍNEO',
-        coagulacion:            'COAGULACIÓN',
-        quimica:                'QUÍMICA SANGUÍNEA',
-        fisico:                 'EXAMEN FÍSICO',
-        quimico:                'EXAMEN QUÍMICO',
-        sedimento:              'SEDIMENTO URINARIO (MICROSCÓPICO)',
-        parasitario:            'EXAMEN COPROPARASITARIO',
+        coproparasitario: '5. EXAMEN COPROPARASITARIO',
+        hematologia: 'HEMATOLOGÍA',
+        grupo: 'GRUPO SANGUÍNEO',
+        coagulacion: 'COAGULACIÓN',
+        quimica: 'QUÍMICA SANGUÍNEA',
+        fisico: 'EXAMEN FÍSICO',
+        quimico: 'EXAMEN QUÍMICO',
+        sedimento: 'SEDIMENTO URINARIO (MICROSCÓPICO)',
+        parasitario: 'EXAMEN COPROPARASITARIO',
     };
 
     const sections = results.results_data;
@@ -531,13 +531,13 @@ export const generateResultadoLaboratorio = (
         doc.text(displayName, 20, y);
         y += 8;
         doc.setFont('helvetica', 'normal');
-        
+
         for (const field in fields) {
             const data = fields[field];
             const value = typeof data === 'object' ? data.value : (data || '--');
             const unit = typeof data === 'object' ? (data.unit || '') : '';
             const reference = typeof data === 'object' ? (data.reference || '--') : '--';
-            
+
             if (value && value !== '--') {
                 if (y > pageHeight - 20) {
                     doc.addPage();

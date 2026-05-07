@@ -100,8 +100,27 @@ Para garantizar una transición segura y limpia al finalizar la fase de desarrol
 4.  **Ajuste de Políticas de Seguridad (RLS):**
     *   Las políticas de Supabase se actualizarán para permitir el acceso total al rol `admin` de forma genérica, garantizando que el nuevo administrador tenga visibilidad sobre todos los KPIs e indicadores del sistema.
 
+## 💻 ENTORNO DE DESARROLLO LOCAL Y MIGRACIÓN (PRÓXIMAMENTE)
+
+Con el fin de garantizar la soberanía tecnológica y la independencia de servicios en la nube, se ha preparado el entorno para una migración transparente a un servidor local.
+
+### **Estado Actual: Infraestructura Lista**
+- **Docker & Docker Desktop:** Instalado y configurado como motor de contenedores.
+- **Supabase CLI:** Integrado en el proyecto para gestionar la base de datos, autenticación y almacenamiento localmente.
+- **PostgreSQL 18:** Disponible en el sistema local para soporte y herramientas adicionales.
+- **Scripts de Automatización:** Añadidos al `package.json` (`supabase:start`, `supabase:stop`, `supabase:status`).
+
+### **Plan de Migración (Cloud → Local)**
+Cuando se decida realizar el cambio definitivo, el proceso será:
+1.  **Sincronización:** Ejecutar `npm run supabase:start` para levantar los servicios locales.
+2.  **Despliegue de Esquema:** Las migraciones locales (en `supabase/migrations`) se aplicarán automáticamente, replicando la estructura exacta de la nube.
+3.  **Población de Datos:** Se utilizará el archivo `seed.sql` para cargar los datos base y de prueba necesarios.
+4.  **Cambio de Variables:** Se actualizará el archivo `.env.local` con las credenciales locales (obtenidas mediante `npm run supabase:status`).
+5.  **Validación:** Pruebas de flujo completo (Citas -> Historia -> PDF) en el entorno local antes de dar de baja el servicio en la nube.
+
 ---
 **SISTEMA DE SALUD INSTITUCIONAL MINPPAL** - *Tecnología al servicio de la salud.*
 
 > [!NOTE]
 > **PENDIENTE PARA PRODUCCIÓN:** Actualmente, la creación de nuevos usuarios (Médicos/Secretarías) desde el Dashboard de Administrador solo añade registros a las tablas de datos. Para el despliegue final, se debe implementar una **Edge Function** con el `service_role` de Supabase para automatizar la creación de la cuenta en `supabase.auth`, evitando el registro manual en el Dashboard de Supabase.
+
