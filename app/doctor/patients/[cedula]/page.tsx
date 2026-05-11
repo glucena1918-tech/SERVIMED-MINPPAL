@@ -403,7 +403,7 @@ export default function PatientHistoryPage() {
                     pulse: formData.pulse,
 
                     // Ordenes de Examen (Solo si check activo)
-                    lab_request: formData.reqLab ? formData.labTests.map(t => t.testName).join(', ') : null,
+                    lab_request: formData.reqLab ? formData.labTests.map((t: any) => t.testName).join(', ') : null,
                     xray_request: formData.reqXray ? formData.xrayRequest : null,
                     other_request: formData.reqOther ? formData.otherRequest : null,
 
