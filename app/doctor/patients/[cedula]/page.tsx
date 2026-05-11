@@ -109,7 +109,7 @@ export default function PatientHistoryPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showPathologyList, setShowPathologyList] = useState(false);
 
-    const filteredPathologies = pathologies.filter(p => 
+    const filteredPathologies = pathologies.filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -166,7 +166,7 @@ export default function PatientHistoryPage() {
             .select('*')
             .eq('is_active', true)
             .order('name', { ascending: true });
-        
+
         if (data) setPathologies(data);
     };
 
@@ -221,7 +221,7 @@ export default function PatientHistoryPage() {
 
             // 3. Cargar cita activa
             let appointment = null;
-            
+
             // Prioridad 1: ID específico desde la URL
             if (appointmentIdParam) {
                 const { data } = await supabase
@@ -244,7 +244,7 @@ export default function PatientHistoryPage() {
                     .eq('status', 'confirmed')
                     .order('appointment_time', { ascending: true })
                     .limit(1);
-                
+
                 if (todayApps && todayApps.length > 0) appointment = todayApps[0];
             }
 
@@ -257,10 +257,10 @@ export default function PatientHistoryPage() {
                     .in('status', ['confirmed', 'pending'])
                     .order('appointment_date', { ascending: true })
                     .limit(1);
-                
+
                 if (recentApps && recentApps.length > 0) appointment = recentApps[0];
             }
-            
+
             if (appointment) {
                 setActiveAppointment(appointment);
                 setFormData(prev => ({
@@ -336,7 +336,7 @@ export default function PatientHistoryPage() {
         if (!formData.pathologyId) errors.pathologyId = 'Debe seleccionar una patología del catálogo.';
         if (!formData.diagnosis.trim()) errors.diagnosis = 'El detalle del diagnóstico es obligatorio.';
         if (formData.diagnosis.length > 500) errors.diagnosis = 'El diagnóstico no puede exceder los 500 caracteres.';
-        
+
         if (!formData.symptoms.trim()) errors.symptoms = 'El motivo de consulta es obligatorio.';
         if (formData.symptoms.length > 500) errors.symptoms = 'El motivo de consulta no puede exceder los 500 caracteres.';
 
@@ -355,7 +355,7 @@ export default function PatientHistoryPage() {
 
     const handleSubmitRecord = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!validateForm()) {
             return;
         }
@@ -419,7 +419,7 @@ export default function PatientHistoryPage() {
                 .select()
                 .single();
             if (error) throw error;
- 
+
             const recordId = (newRecord as any)?.id;
 
             // 🧪 INTEGRACIÓN CON MÓDULO DE LABORATORIO
@@ -623,14 +623,14 @@ export default function PatientHistoryPage() {
                             <div>
                                 <p className="text-xs font-bold uppercase tracking-wider opacity-80">Cita Programada para Hoy</p>
                                 <h3 className="font-bold text-lg">
-                                    {activeAppointment.consultation_type || 'Consulta General'} 
-                                    <span className="mx-2 opacity-50">|</span> 
+                                    {activeAppointment.consultation_type || 'Consulta General'}
+                                    <span className="mx-2 opacity-50">|</span>
                                     <span className="text-blue-200">{activeAppointment.appointment_time?.slice(0, 5)}</span>
                                 </h3>
                             </div>
                         </div>
                         {!showAddForm && (
-                            <button 
+                            <button
                                 onClick={() => setShowAddForm(true)}
                                 className="bg-white text-blue-600 px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-50 transition shadow-sm"
                             >
@@ -840,7 +840,7 @@ export default function PatientHistoryPage() {
                                 </div>
                                 <div className="relative">
                                     <label className="block text-sm font-bold text-gray-700 mb-1">Patología (Catálogo) *</label>
-                                    
+
                                     {/* Buscador de Patología */}
                                     <div className="relative">
                                         <div className="relative">
@@ -856,10 +856,10 @@ export default function PatientHistoryPage() {
                                                 <span className="text-gray-400">🔍</span>
                                             </div>
                                             {formData.pathologyId && (
-                                                <button 
+                                                <button
                                                     type="button"
                                                     onClick={() => {
-                                                        setFormData({...formData, pathologyId: '', diagnosis: ''});
+                                                        setFormData({ ...formData, pathologyId: '', diagnosis: '' });
                                                         setSearchTerm('');
                                                     }}
                                                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-500"
@@ -877,10 +877,10 @@ export default function PatientHistoryPage() {
                                                             key={p.id}
                                                             type="button"
                                                             onClick={() => {
-                                                                setFormData({ 
-                                                                    ...formData, 
+                                                                setFormData({
+                                                                    ...formData,
                                                                     pathologyId: p.id,
-                                                                    diagnosis: p.name + ", " 
+                                                                    diagnosis: p.name + ", "
                                                                 });
                                                                 setSearchTerm(p.name);
                                                                 setShowPathologyList(false);
@@ -899,11 +899,11 @@ export default function PatientHistoryPage() {
                                         )}
                                     </div>
                                     {formErrors.pathologyId && <p className="text-xs text-red-600 mt-1 font-medium">{formErrors.pathologyId}</p>}
-                                    
+
                                     {/* Backdrop para cerrar la lista al hacer click fuera */}
                                     {showPathologyList && (
-                                        <div 
-                                            className="fixed inset-0 z-40" 
+                                        <div
+                                            className="fixed inset-0 z-40"
                                             onClick={() => setShowPathologyList(false)}
                                         />
                                     )}
@@ -1322,14 +1322,12 @@ export default function PatientHistoryPage() {
                     {labOrders.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {labOrders.map((order) => (
-                                <div key={order.id} className={`bg-white/70 backdrop-blur-sm rounded-2xl border p-5 shadow-sm transition-all hover:shadow-md ${
-                                    order.status === 'completado' ? 'border-accent/30 bg-accent/5' : 'border-gray-200'
-                                }`}>
+                                <div key={order.id} className={`bg-white/70 backdrop-blur-sm rounded-2xl border p-5 shadow-sm transition-all hover:shadow-md ${order.status === 'completado' ? 'border-accent/30 bg-accent/5' : 'border-gray-200'}`}>
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${
-                                                order.category === 'sangre' ? 'bg-red-50 text-red-500' : 
-                                                order.category === 'orina' ? 'bg-yellow-50 text-yellow-500' : 
+                                                order.category === 'sangre' ? 'bg-red-50 text-red-500' :
+                                                order.category === 'orina' ? 'bg-yellow-50 text-yellow-500' :
                                                 'bg-amber-50 text-amber-700'
                                             }`}>
                                                 {order.category === 'sangre' ? '🩸' : order.category === 'orina' ? '🧪' : '💩'}
@@ -1356,7 +1354,7 @@ export default function PatientHistoryPage() {
                                                     {order.results[0]?.observations || 'Sin observaciones adicionales.'}
                                                 </p>
                                             </div>
-                                            <button 
+                                            <button
                                                 onClick={async () => {
                                                     try {
                                                         // Obtener resultados del laboratorio
@@ -1631,11 +1629,11 @@ export default function PatientHistoryPage() {
                     title="Volver al inicio"
                 >
                     <div className="bg-accent/90 backdrop-blur-md text-white pl-3 pr-2 py-6 rounded-l-2xl shadow-[-4px_0_15px_rgba(0,0,0,0.1)] border-y border-l border-white/20 transition-all duration-500 transform translate-x-1 group-hover:translate-x-0 flex flex-col items-center gap-2">
-                        <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            className="h-5 w-5 animate-bounce-slow" 
-                            fill="none" 
-                            viewBox="0 0 24 24" 
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 animate-bounce-slow"
+                            fill="none"
+                            viewBox="0 0 24 24"
                             stroke="currentColor"
                         >
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 10l7-7m0 0l7 7m-7-7v18" />
