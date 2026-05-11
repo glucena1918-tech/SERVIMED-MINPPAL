@@ -601,7 +601,7 @@ export default function LaboratoryOrderPage() {
                                 const cedulaFromEmail = spec.email?.split('@')[0] || '';
                                 generateResultadoLaboratorio(
                                     order.patient,
-                                    { full_name: spec.full_name, license_number: spec.license_number, cedula: cedulaFromEmail, specialty: spec.specialty || 'Bioanalista Clínico' },
+                                    { full_name: spec.full_name, license_number: spec.license_number, cedula: cedulaFromEmail, specialty: spec.specialty || 'Bioanalista Clínico' } as any,
                                     { test_name: order.test_name, category: order.category, created_at: order.created_at },
                                     results as any
                                 );

@@ -87,8 +87,8 @@ export default function LaboratoryDashboard() {
 
     const handleUpdateStatus = async (orderId: string, newStatus: string) => {
         try {
-            const { error } = await supabase
-                .from('laboratory_orders')
+            const { error } = await (supabase
+                .from('laboratory_orders') as any)
                 .update({ status: newStatus })
                 .eq('id', orderId);
 
