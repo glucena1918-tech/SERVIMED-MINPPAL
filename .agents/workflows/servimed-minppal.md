@@ -1,8 +1,6 @@
 ---
-description: 
+description: Diseñar y desarrollar una aplicación web para control de citas y expedientes médicos, toda la visual e interfaz de usuario en idioma español.
 ---
-
-Diseñar y desarrollar una aplicación web para control de citas y expedientes médicos, toda la visual e interfaz de usuario en idioma español.
 
 Workflow:
 
@@ -56,5 +54,3 @@ Restricciones
 - No inventar módulos sin relación clínica u operativa.
 - No sacrificar privacidad por conveniencia de UX.
 - No usar texto ambiguo: cada campo, estado y acción debe tener nombre claro.
-
-
