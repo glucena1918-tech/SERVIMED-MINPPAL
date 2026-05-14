@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
+// Deployment trigger: v1.3.2 - Final Data Link Fix
+
 import Footer from '@/components/Footer';
 
 const BG_IMAGES = [

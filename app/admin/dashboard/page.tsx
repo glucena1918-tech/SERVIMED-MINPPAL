@@ -656,7 +656,7 @@ export default function AdminDashboard() {
                             Control Central - Administrador
                         </div>
                         <h1 className="text-5xl font-black tracking-tight mb-2">Panel de <span className="text-accent">Inteligencia</span></h1>
-                        <p className="text-white/60 font-medium italic">Bienvenido, {adminData?.user_metadata?.full_name || 'Gonzalo Lucena'}. Gestionando el futuro de SSIMINPPAL.</p>
+                        <p className="text-white/60 font-medium italic">Bienvenido, {adminData?.user_metadata?.full_name || 'Administrador'}. Gestionando el futuro de SSIMINPPAL.</p>
                     </div>
 
                     <div className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 backdrop-blur-md">
