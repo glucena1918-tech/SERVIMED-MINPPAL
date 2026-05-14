@@ -81,8 +81,14 @@ export default function LaboratoryDashboard() {
     };
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
-        router.push('/');
+        try {
+            await supabase.auth.signOut();
+            window.localStorage.clear();
+            window.sessionStorage.clear();
+            window.location.replace('/');
+        } catch (error) {
+            window.location.replace('/');
+        }
     };
 
     const handleUpdateStatus = async (orderId: string, newStatus: string) => {

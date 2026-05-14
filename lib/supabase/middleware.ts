@@ -59,6 +59,8 @@ export async function updateSession(request: NextRequest) {
             admin: '/admin',
             doctor: '/doctor',
             patient: '/patient',
+            secretary: '/secretary',
+            laboratory: '/laboratory',
         };
 
         if (pathname === '/login' || pathname === '/register') {
@@ -67,14 +69,22 @@ export async function updateSession(request: NextRequest) {
         }
 
         if (userRole && roleRoutes[userRole as string]) {
+            const allowedPrefix = roleRoutes[userRole as string];
+            // Si intenta entrar a una ruta de otro rol, redirigir a su propio dashboard
             if (pathname.startsWith('/admin') && userRole !== 'admin') {
-                return NextResponse.redirect(new URL(`${roleRoutes[userRole as string]}/dashboard`, request.url));
+                return NextResponse.redirect(new URL(`${allowedPrefix}/dashboard`, request.url));
             }
             if (pathname.startsWith('/doctor') && userRole !== 'doctor') {
-                return NextResponse.redirect(new URL(`${roleRoutes[userRole as string]}/dashboard`, request.url));
+                return NextResponse.redirect(new URL(`${allowedPrefix}/dashboard`, request.url));
             }
             if (pathname.startsWith('/patient') && userRole !== 'patient') {
-                return NextResponse.redirect(new URL(`${roleRoutes[userRole as string]}/dashboard`, request.url));
+                return NextResponse.redirect(new URL(`${allowedPrefix}/dashboard`, request.url));
+            }
+            if (pathname.startsWith('/secretary') && userRole !== 'secretary') {
+                return NextResponse.redirect(new URL(`${allowedPrefix}/dashboard`, request.url));
+            }
+            if (pathname.startsWith('/laboratory') && userRole !== 'laboratory') {
+                return NextResponse.redirect(new URL(`${allowedPrefix}/dashboard`, request.url));
             }
         }
     }

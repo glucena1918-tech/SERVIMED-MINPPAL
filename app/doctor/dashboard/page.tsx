@@ -99,8 +99,14 @@ export default function DoctorDashboard() {
     }, [router]);
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
-        router.push('/');
+        try {
+            await supabase.auth.signOut();
+            window.localStorage.clear();
+            window.sessionStorage.clear();
+            window.location.replace('/');
+        } catch (error) {
+            window.location.replace('/');
+        }
     };
 
     const handleSearch = async (e: React.FormEvent) => {

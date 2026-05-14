@@ -22,6 +22,7 @@ export default function LoginPage() {
                     const userRole = user.app_metadata?.role || user.user_metadata?.role;
                     if (userRole === 'doctor') router.replace('/doctor/dashboard');
                     else if (userRole === 'admin') router.replace('/login/admin');
+                    else if (userRole === 'secretary') router.replace('/secretary/dashboard');
                     else if (userRole === 'laboratory') router.replace('/laboratory/dashboard');
                     else router.replace('/patient/dashboard');
                 } else {
@@ -75,6 +76,8 @@ export default function LoginPage() {
                     router.replace('/doctor/dashboard');
                 } else if (userRole === 'laboratory') {
                     router.replace('/laboratory/dashboard');
+                } else if (userRole === 'secretary') {
+                    router.replace('/secretary/dashboard');
                 } else if (userRole === 'admin') {
                     router.replace('/login/admin');
                 } else {

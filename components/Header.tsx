@@ -30,9 +30,14 @@ export default function Header() {
     const handleLogout = async () => {
         try {
             await supabase.auth.signOut();
-            router.push('/');
+            // Limpieza profunda de persistencia local
+            window.localStorage.clear();
+            window.sessionStorage.clear();
+            // Redirección forzada para limpiar cookies de SSR y estado de middleware
+            window.location.replace('/');
         } catch (error) {
             console.error('Error logging out:', error);
+            window.location.replace('/');
         }
     };
 
@@ -86,19 +91,35 @@ export default function Header() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-4">
-                            <p className="text-accent text-[9px] font-black uppercase tracking-[0.4em] opacity-50 mb-2">Acceso Seguro</p>
+                            <p className="text-accent text-[9px] font-black uppercase tracking-[0.4em] opacity-50 mb-2">
+                                {isDashboardPath ? 'Mi Sesión' : 'Acceso Seguro'}
+                            </p>
                             
-                            <Link href="/register" onClick={closeMenu} className="w-full py-5 rounded-2xl bg-accent text-[#020714] text-center font-black text-base uppercase tracking-widest shadow-[0_10px_20px_rgba(6,214,160,0.1)] active:bg-accent/80 transition-colors">
-                                Crear Cuenta
-                            </Link>
-                            
-                            <Link href="/login/admin" onClick={closeMenu} className="w-full py-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-center font-black text-[10px] uppercase tracking-[0.2em] active:bg-red-500/20 transition-colors">
-                                🛡️ Acceso Administrativo
-                            </Link>
+                            {isDashboardPath ? (
+                                <button 
+                                    onClick={() => {
+                                        closeMenu();
+                                        handleLogout();
+                                    }} 
+                                    className="w-full py-5 rounded-2xl bg-red-500 text-white text-center font-black text-base uppercase tracking-widest shadow-[0_10px_20px_rgba(239,68,68,0.2)] active:bg-red-600 transition-colors"
+                                >
+                                    Cerrar Sesión
+                                </button>
+                            ) : (
+                                <>
+                                    <Link href="/register" onClick={closeMenu} className="w-full py-5 rounded-2xl bg-accent text-[#020714] text-center font-black text-base uppercase tracking-widest shadow-[0_10px_20px_rgba(6,214,160,0.1)] active:bg-accent/80 transition-colors">
+                                        Crear Cuenta
+                                    </Link>
+                                    
+                                    <Link href="/login/admin" onClick={closeMenu} className="w-full py-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-center font-black text-[10px] uppercase tracking-[0.2em] active:bg-red-500/20 transition-colors">
+                                        🛡️ Acceso Administrativo
+                                    </Link>
+                                </>
+                            )}
                         </div>
 
                         <div className="mt-6 text-center">
-                            <p className="text-accent text-[9px] font-black tracking-widest opacity-40">v1.3.1 - PERFORMANCE</p>
+                            <p className="text-accent text-[9px] font-black tracking-widest opacity-40">v1.3.2 - AUTH FIXED</p>
                         </div>
                     </div>
                 </div>
@@ -122,17 +143,15 @@ export default function Header() {
                         </div>
                     </Link>
 
-                    {/* Botón Hamburguesa Móvil - REDUCIDO PESO VISUAL */}
-                    {!isDashboardPath && (
-                        <button 
-                            onClick={() => setIsMenuOpen(true)}
-                            className="lg:hidden w-12 h-12 flex flex-col items-center justify-center gap-1.5 bg-accent/10 rounded-2xl border border-accent/30 active:scale-90 transition-all"
-                        >
-                            <div className="w-6 h-0.5 bg-accent" />
-                            <div className="w-6 h-0.5 bg-accent" />
-                            <div className="w-6 h-0.5 bg-accent" />
-                        </button>
-                    )}
+                    {/* Botón Hamburguesa Móvil - SIEMPRE VISIBLE PARA CERRAR SESIÓN EN DASHBOARD */}
+                    <button 
+                        onClick={() => setIsMenuOpen(true)}
+                        className="lg:hidden w-12 h-12 flex flex-col items-center justify-center gap-1.5 bg-accent/10 rounded-2xl border border-accent/30 active:scale-90 transition-all"
+                    >
+                        <div className="w-6 h-0.5 bg-accent" />
+                        <div className="w-6 h-0.5 bg-accent" />
+                        <div className="w-6 h-0.5 bg-accent" />
+                    </button>
                     
                     {/* El resto del código de escritorio se mantiene igual */}
                     <div className="hidden lg:flex items-center gap-8">
