@@ -424,7 +424,7 @@ export default function PatientHistoryPage() {
             if (!patient) {
                 const searchCedula = user.user_metadata?.cedula || user.email?.split('@')[0];
                 if (searchCedula) {
-                    const { data: existingPatient } = await supabase
+                    const { data: existingPatient } = await (supabase as any)
                         .from('patients')
                         .select('id, full_name')
                         .eq('cedula', searchCedula)

@@ -32,9 +32,9 @@ export default function PatientDashboard() {
                 const searchCedula = user.user_metadata?.cedula || user.email?.split('@')[0];
                 
                 if (!patient && searchCedula) {
-                    const { data: existingPatient } = await supabase
+                    const { data: existingPatient } = await (supabase as any)
                         .from('patients')
-                        .select('*')
+                        .select('id, full_name')
                         .eq('cedula', searchCedula)
                         .single();
 
