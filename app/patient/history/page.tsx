@@ -432,7 +432,7 @@ export default function PatientHistoryPage() {
 
                     if (existingPatient) {
                         // Auto-vincular
-                        await supabase.from('patients').update({ user_id: user.id }).eq('id', existingPatient.id);
+                        await (supabase as any).from('patients').update({ user_id: user.id }).eq('id', existingPatient.id);
                         patient = existingPatient;
                     }
                 }

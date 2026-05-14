@@ -40,7 +40,7 @@ export default function PatientDashboard() {
 
                     if (existingPatient) {
                         // Auto-vincular para futuras sesiones
-                        const { data: linkedPatient } = await supabase
+                        const { data: linkedPatient } = await (supabase as any)
                             .from('patients')
                             .update({ user_id: user.id })
                             .eq('id', existingPatient.id)
