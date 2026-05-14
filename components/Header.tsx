@@ -11,6 +11,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
@@ -18,7 +19,7 @@ export default function Header() {
     const pathname = usePathname();
     const router = useRouter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    
+
     const isDashboardPath = pathname?.includes('/dashboard') || false;
 
     // Función para cerrar el menú y LIBERAR el scroll instantáneamente
@@ -62,13 +63,13 @@ export default function Header() {
     return (
         <>
             {/* Overlay Móvil - v1.3.1 OPTIMIZADO */}
-            <div 
+            <div
                 className={`fixed inset-0 z-[999] bg-[#050b18] transition-transform duration-300 ease-out ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'} lg:hidden`}
             >
                 <div className="flex flex-col h-full w-full p-6">
                     {/* Botón Cerrar */}
                     <div className="flex justify-end pt-2">
-                        <button 
+                        <button
                             onClick={closeMenu}
                             className="w-12 h-12 flex items-center justify-center bg-white/5 border border-white/10 rounded-2xl active:scale-95 transition-all"
                         >
@@ -77,7 +78,7 @@ export default function Header() {
                     </div>
 
                     <div className="grid grid-cols-1 gap-8 mt-6 overflow-y-auto px-2 pb-20">
-                        
+
                         <div className="grid grid-cols-1 gap-3">
                             <p className="text-accent text-[9px] font-black uppercase tracking-[0.4em] opacity-50 mb-2">Navegación</p>
                             <Link href="/specialties" onClick={closeMenu} className="flex items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/10">
@@ -94,13 +95,13 @@ export default function Header() {
                             <p className="text-accent text-[9px] font-black uppercase tracking-[0.4em] opacity-50 mb-2">
                                 {isDashboardPath ? 'Mi Sesión' : 'Acceso Seguro'}
                             </p>
-                            
+
                             {isDashboardPath ? (
-                                <button 
+                                <button
                                     onClick={() => {
                                         closeMenu();
                                         handleLogout();
-                                    }} 
+                                    }}
                                     className="w-full py-5 rounded-2xl bg-red-500 text-white text-center font-black text-base uppercase tracking-widest shadow-[0_10px_20px_rgba(239,68,68,0.2)] active:bg-red-600 transition-colors"
                                 >
                                     Cerrar Sesión
@@ -110,7 +111,7 @@ export default function Header() {
                                     <Link href="/register" onClick={closeMenu} className="w-full py-5 rounded-2xl bg-accent text-[#020714] text-center font-black text-base uppercase tracking-widest shadow-[0_10px_20px_rgba(6,214,160,0.1)] active:bg-accent/80 transition-colors">
                                         Crear Cuenta
                                     </Link>
-                                    
+
                                     <Link href="/login/admin" onClick={closeMenu} className="w-full py-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-center font-black text-[10px] uppercase tracking-[0.2em] active:bg-red-500/20 transition-colors">
                                         🛡️ Acceso Administrativo
                                     </Link>
@@ -128,10 +129,17 @@ export default function Header() {
             {/* Header Principal - OPTIMIZACIÓN DE BACKDROP BLUR PARA MÓVIL */}
             <header className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-6 py-4 md:py-8">
                 <nav className="container mx-auto flex items-center justify-between bg-[#020714]/80 lg:backdrop-blur-3xl border border-white/10 px-4 md:px-8 py-3 md:py-5 rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl">
-                    
+
                     <Link href="/" className="flex items-center gap-3 md:gap-4">
                         <div className="w-10 h-10 md:w-14 md:h-14 overflow-hidden rounded-xl md:rounded-2xl border-2 border-accent/20">
-                            <img src="/images/logo-minppal.png" alt="Logo" className="w-full h-full object-cover" />
+                            <Image 
+                                src="/images/logo-minppal.png" 
+                                alt="Logo" 
+                                width={120} 
+                                height={40} 
+                                className="w-full h-full object-contain" 
+                                priority
+                            />
                         </div>
                         <div className="flex flex-col text-left">
                             <span className="text-white font-black text-[10px] md:text-xl tracking-tighter leading-none mb-0.5 md:mb-1 uppercase">
@@ -144,7 +152,7 @@ export default function Header() {
                     </Link>
 
                     {/* Botón Hamburguesa Móvil - SIEMPRE VISIBLE PARA CERRAR SESIÓN EN DASHBOARD */}
-                    <button 
+                    <button
                         onClick={() => setIsMenuOpen(true)}
                         className="lg:hidden w-12 h-12 flex flex-col items-center justify-center gap-1.5 bg-accent/10 rounded-2xl border border-accent/30 active:scale-90 transition-all"
                     >
@@ -152,7 +160,7 @@ export default function Header() {
                         <div className="w-6 h-0.5 bg-accent" />
                         <div className="w-6 h-0.5 bg-accent" />
                     </button>
-                    
+
                     {/* El resto del código de escritorio se mantiene igual */}
                     <div className="hidden lg:flex items-center gap-8">
                         {!isDashboardPath && (
