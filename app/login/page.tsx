@@ -41,14 +41,25 @@ export default function LoginPage() {
         setError(null);
 
         try {
-            // GENERACIÓN DE IDENTIDAD SINTÉTICA
-            // Convertimos la cédula en un correo técnico para Supabase Auth
-            const syntheticEmail = `${cedula.trim()}@servimed.com`;
-
-            const { data, error: signInError } = await supabase.auth.signInWithPassword({
-                email: syntheticEmail,
+            // LÓGICA DE LOGIN: Cédula + PIN (Diseño Original)
+            let { data, error: signInError } = await supabase.auth.signInWithPassword({
+                email: cedula.trim(),
                 password: pin,
             });
+
+            // Si falla con la cédula pura, intentamos con el encapsulado invisible (Legacy Support)
+            if (signInError && signInError.message.includes('Invalid login credentials')) {
+                const syntheticEmail = `${cedula.trim()}@servimed.com`;
+                const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+                    email: syntheticEmail,
+                    password: pin,
+                });
+                
+                if (!retryError) {
+                    data = retryData;
+                    signInError = null;
+                }
+            }
 
             if (signInError) {
                 // Manejo de errores amigable

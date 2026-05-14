@@ -413,11 +413,30 @@ export default function PatientHistoryPage() {
             if (!session) { router.push('/login'); return; }
             const user = session.user;
 
-            const { data: patient } = await supabase
+            // Intentar obtener perfil de paciente
+            let { data: patient } = await supabase
                 .from('patients')
                 .select('id, full_name')
                 .eq('user_id', user.id)
                 .single();
+
+            // Respaldo robusto: Buscar por cédula si no hay vínculo directo
+            if (!patient) {
+                const searchCedula = user.user_metadata?.cedula || user.email?.split('@')[0];
+                if (searchCedula) {
+                    const { data: existingPatient } = await supabase
+                        .from('patients')
+                        .select('id, full_name')
+                        .eq('cedula', searchCedula)
+                        .single();
+
+                    if (existingPatient) {
+                        // Auto-vincular
+                        await supabase.from('patients').update({ user_id: user.id }).eq('id', existingPatient.id);
+                        patient = existingPatient;
+                    }
+                }
+            }
 
             if (patient) {
                 setPatientName((patient as any).full_name || 'Paciente');

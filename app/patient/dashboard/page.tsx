@@ -21,14 +21,37 @@ export default function PatientDashboard() {
                 if (!session) { router.push('/login'); return; }
                 const user = session.user;
 
-                // Cargar perfil
-                const { data: patient, error: pError } = await supabase
+                // Cargar perfil - Intento 1: Por user_id
+                let { data: patient, error: pError } = await supabase
                     .from('patients')
                     .select('*')
                     .eq('user_id', user.id)
                     .single();
 
-                if (pError) throw pError;
+                // Intento 2: Si no hay vínculo, buscar por cédula (desde metadata o email)
+                const searchCedula = user.user_metadata?.cedula || user.email?.split('@')[0];
+                
+                if (!patient && searchCedula) {
+                    const { data: existingPatient } = await supabase
+                        .from('patients')
+                        .select('*')
+                        .eq('cedula', searchCedula)
+                        .single();
+
+                    if (existingPatient) {
+                        // Auto-vincular para futuras sesiones
+                        const { data: linkedPatient } = await supabase
+                            .from('patients')
+                            .update({ user_id: user.id })
+                            .eq('id', existingPatient.id)
+                            .select()
+                            .single();
+                        
+                        if (linkedPatient) patient = linkedPatient;
+                    }
+                }
+
+                if (pError && !patient) throw pError;
                 if (!patient) return; 
                 setPatientData(patient);
 

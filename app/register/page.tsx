@@ -44,18 +44,18 @@ function RegisterForm() {
         setError(null);
 
         try {
-            // GENERACIÓN DE IDENTIDAD SINTÉTICA PARA AUTH
-            const syntheticEmail = `${cedula.trim()}@servimed.com`;
+            // REGISTRO ORIGINAL: Cédula + PIN
+            console.log('📝 Registrando con Cédula:', cedula);
 
-            // Registrar usuario en Supabase Auth
+            // Registrar usuario en Supabase Auth usando la cédula como email/identificador
             const { data: authData, error: signUpError } = await supabase.auth.signUp({
-                email: syntheticEmail,
+                email: cedula.trim(),
                 password,
                 options: {
                     data: {
                         role,
                         full_name: fullName,
-                        real_email: email, // Guardamos el correo real en metadata por seguridad extra
+                        real_email: email, // Guardamos el correo real para notificaciones opcionales
                     },
                 },
             });

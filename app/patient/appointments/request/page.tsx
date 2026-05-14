@@ -144,7 +144,11 @@ function RequestAppointmentForm() {
             setLoadingTimes(true);
             try {
                 // 1. Obtener día de la semana (0-6, donde 0 es Domingo)
-                const selectedDay = new Date(date + 'T00:00:00').getDay();
+                // Usamos una técnica más robusta para evitar problemas de zona horaria
+                const [year, month, day] = date.split('-').map(Number);
+                const selectedDay = new Date(year, month - 1, day).getDay();
+
+                console.log('📅 Consultando disponibilidad para:', { date, selectedDay, doctorId: selectedDoctorId });
 
                 // 2. Cargar disponibilidad del doctor para ese día
                 const { data: availData, error: availError } = await supabase
@@ -155,6 +159,7 @@ function RequestAppointmentForm() {
                     .eq('is_active', true);
 
                 if (availError) throw availError;
+                console.log('✅ Disponibilidad encontrada:', availData?.length || 0, 'turnos');
 
                 // 3. Cargar citas ya ocupadas (Cualquiera que no esté cancelada bloquea el horario)
                 const { data: bookedData, error: bookedError } = await supabase
